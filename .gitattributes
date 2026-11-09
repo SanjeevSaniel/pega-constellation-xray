@@ -1,1 +1,5 @@
 * text=auto eol=lf
+/test export-ignore
+/package.json export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

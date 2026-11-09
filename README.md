@@ -4,6 +4,11 @@ X-ray vision for Pega Constellation apps. A Chrome DevTools panel that records w
 
 Built for debugging custom DX components: "was this API even called?", "what did it return?", "what shape is the data my component receives?".
 
+## Install from a release (easiest)
+
+1. Download `pega-constellation-xray-v0.1.0.zip` from the [Releases](https://github.com/SanjeevSaniel/pega-constellation-xray/releases) page and unzip it somewhere permanent.
+2. Follow the steps below, choosing that unzipped folder in step 2.
+
 ## Install (unpacked)
 
 1. Open `chrome://extensions`, switch on **Developer mode**.
@@ -64,3 +69,7 @@ npm test        # drives src/hook.js against a fake PCore, PConnect, fetch and s
 | `src/bridge.js` | Isolated-world relay between the page and the extension |
 | `background.js` | Registers the hook per switched-on site, relays events to the panel |
 | `panel.html/css/js` | The DevTools panel |
+
+## Licence
+
+MIT. See `LICENSE`.
