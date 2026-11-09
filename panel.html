@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pega Constellation X-Ray</title>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true">◎</span><strong>Constellation X-Ray</strong></div>
+  <div class="chips" id="chips" aria-live="polite"></div>
+  <div class="actions">
+    <button id="btn-enable" class="primary" hidden>Turn on for this site</button>
+    <button id="btn-reload" hidden title="Reload the page so X-Ray sees everything from the very first call">Reload &amp; capture from start</button>
+    <button id="btn-pause">Pause</button>
+    <button id="btn-clear">Clear</button>
+    <button id="btn-export">Export</button>
+    <label class="check" title="Show the shape of every value but hide the values themselves. Use it before sharing a screenshot or an export.">
+      <input type="checkbox" id="mask"> Hide values
+    </label>
+  </div>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<nav class="tabs" role="tablist" aria-label="X-Ray views">
+  <button role="tab" data-tab="activity" aria-selected="true">Activity <span class="count" id="n-activity">0</span></button>
+  <button role="tab" data-tab="network" aria-selected="false">Network <span class="count" id="n-network">0</span></button>
+  <button role="tab" data-tab="expect" aria-selected="false">Was it called? <span class="count" id="n-expect"></span></button>
+  <button role="tab" data-tab="component" aria-selected="false">Component</button>
+  <button role="tab" data-tab="health" aria-selected="false">Health <span class="count warn" id="n-health" hidden>0</span></button>
+</nav>
+
+<main>
+  <!-- Activity / Network share one split view -->
+  <section id="view-list" class="split">
+    <div class="pane list-pane">
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="Filter by name, URL or component" aria-label="Filter">
+        <div class="seg" id="kinds" role="group" aria-label="Type">
+          <button data-kind="all" aria-pressed="true">All</button>
+          <button data-kind="pcore" aria-pressed="false">PCore</button>
+          <button data-kind="pconn" aria-pressed="false">PConnect</button>
+          <button data-kind="store" aria-pressed="false">Store</button>
+          <button data-kind="pubsub" aria-pressed="false">Events</button>
+        </div>
+        <label class="check"><input type="checkbox" id="hide-reads" checked> Hide quick reads</label>
+        <label class="check"><input type="checkbox" id="pega-only" checked> Pega calls only</label>
+        <label class="check"><input type="checkbox" id="only-problems"> Problems only</label>
+      </div>
+      <div class="rows" id="rows" role="listbox" aria-label="Recorded activity"></div>
+      <div class="empty" id="rows-empty"></div>
+    </div>
+    <div class="pane detail-pane" id="detail"></div>
+  </section>
+
+  <section id="view-expect" hidden>
+    <div class="card">
+      <h2>Was it called?</h2>
+      <p class="muted">Add a call or URL you expect to see. X-Ray tells you whether it happened, how many times, and what the last result was. Use plain text, or <code>/regex/i</code>.</p>
+      <form id="expect-form" class="inline">
+        <input id="expect-pattern" placeholder="e.g. getDataAsync, /data_views/, updateFieldValue" required>
+        <select id="expect-kind" aria-label="Where to look">
+          <option value="any">Anywhere</option><option value="net">Network</option><option value="pcore">PCore</option><option value="pconn">PConnect</option><option value="store">Store</option>
+        </select>
+        <button class="primary" type="submit">Add</button>
+      </form>
+      <div id="expect-list"></div>
+    </div>
+  </section>
+
+  <section id="view-component" hidden>
+    <div class="card">
+      <h2>Component X-Ray</h2>
+      <p class="muted">Select any element in the <strong>Elements</strong> panel. X-Ray finds the Constellation component behind it and shows what it was given, what it holds, and what it called.</p>
+      <div class="inline">
+        <button class="primary" id="btn-inspect">Inspect selected element</button>
+        <button id="btn-list">List all components on the page</button>
+        <label class="check"><input type="checkbox" id="follow" checked> Follow my selection</label>
+      </div>
+    </div>
+    <div id="component-out"></div>
+  </section>
+
+  <section id="view-health" hidden>
+    <div id="health-out"></div>
+  </section>
+</main>
+<script src="panel.js"></script>
+</body>
+</html>

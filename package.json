@@ -1,0 +1,10 @@
+{
+  "name": "pega-constellation-xray",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DevTools panel that records PCore, PConnect, store and API activity in Pega Constellation apps.",
+  "type": "module",
+  "scripts": {
+    "test": "node --check src/hook.js && node --check src/bridge.js && node --check background.js && node --check panel.js && node test/smoke.mjs"
+  }
+}

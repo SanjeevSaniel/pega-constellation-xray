@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Pega Constellation X-Ray",
+  "version": "0.1.0",
+  "description": "X-ray vision for Pega Constellation. A DevTools panel that records PCore, PConnect, store and API activity: what was called, with what, and the exact shape of the data that came back.",
+  "minimum_chrome_version": "111",
+  "devtools_page": "devtools.html",
+  "background": { "service_worker": "background.js" },
+  "permissions": ["scripting", "storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
+}
