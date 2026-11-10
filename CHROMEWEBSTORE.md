@@ -56,6 +56,27 @@ Remote code: none. All code is in the package. There are no external requests fr
 - Small promo tile: 440 x 280. Marquee (optional): 1400 x 560.
 - Icon: 128 x 128 is in the package. The store recommends about 96 x 96 of artwork with transparent padding; this icon fills the tile edge to edge, which is accepted but may look larger than neighbours.
 
+## The publishing process, step by step
+
+Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Google account that will own the extension). Menus and rules change, so check the dashboard's own prompts as you go.
+
+| # | Step | Who | What to do |
+| --- | --- | --- | --- |
+| 1 | Developer account | You | Sign in to the dashboard, accept the developer agreement, pay the one-time registration fee, and verify your contact email. Turn on two-step verification on the Google account. |
+| 2 | Publisher type | You | Say whether you are a trader (a business) or not, as the dashboard asks. A trader's contact details are shown publicly. |
+| 3 | Make the assets | Together | Screenshots, a small promo tile, and a privacy policy page at a public URL (see Assets and Privacy above). I can write and host the privacy page on your site. |
+| 4 | Try it on a real Pega app | You | Load the unpacked build, switch it on, and check Network, Data pages, Views and Issues on a real app. It has only been run against a fake runtime so far. |
+| 5 | Build the upload zip | Me | `git archive` with the files at the root of the zip (command below), then I check its file list. |
+| 6 | Add new item | You | In the dashboard choose **Add new item** and upload the store zip. The dashboard reads the manifest and fills in name, version and icon. |
+| 7 | Store listing tab | You | Paste the description and summary from this file, choose the category, add the screenshots, promo tile and the privacy policy URL. |
+| 8 | Privacy tab | You | Paste the single-purpose statement, each permission justification, answer the remote-code question (none), tick the data-use boxes as in Privacy practices, and certify the three statements. |
+| 9 | Distribution tab | You | Visibility: public, unlisted or private (unlisted is a safe first choice). Regions: all. Pricing: free. |
+| 10 | Test instructions | You | Reviewers cannot reach a Pega app. Say that Lens records a Constellation app inside DevTools, describe what they will see (the Lens tab, Turn on for this site, Health), and consider adding a short screen recording. |
+| 11 | Submit for review | You | **Submit for review**. Choose whether it publishes automatically once approved, or waits for you to publish. |
+| 12 | Wait | Chrome | Review takes from hours to some days. Broad host permissions and a recorder injected into the page can mean a closer review. Fix what the reviewer asks and resubmit. |
+| 13 | Publish | You | If you chose deferred publishing, press **Publish** once approved. |
+| 14 | Updates | Together | Bump the version in `manifest.json`, update `CHANGELOG.md`, build a new store zip, and upload it as a new version in the dashboard. Each update is reviewed again. |
+
 ## Before submitting
 
 - Register a developer account (one-time fee) and verify the contact email; turn on two-step verification.
