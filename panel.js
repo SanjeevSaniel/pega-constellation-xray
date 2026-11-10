@@ -79,27 +79,6 @@
   }
   const view = (v) => (S.mask ? maskDeep(v) : v);
 
-  function ts(s, ind = 0) {
-    if (!s) return 'unknown';
-    const pad = '  '.repeat(ind);
-    const quote = (k) => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k));
-    switch (s.t) {
-      case 'object': {
-        const keys = Object.keys(s.props || {});
-        if (!keys.length) return s.n ? `{ /* ${s.n} keys, not shown */ }` : '{}';
-        const body = keys.map((k) => `${pad}  ${quote(k)}${s.props[k].opt ? '?' : ''}: ${ts(s.props[k], ind + 1)};`).join('\n');
-        return `{\n${body}\n${pad}}${s.n > keys.length ? ` /* +${s.n - keys.length} more */` : ''}`;
-      }
-      case 'array': {
-        if (!s.item) return 'unknown[] /* empty */';
-        const inner = ts(s.item, ind);
-        return `${s.item.t === 'union' ? `(${inner})` : inner}[] /* ${plural(s.len, 'item')} */`;
-      }
-      case 'union': return s.of.map((x) => ts(x, ind)).join(' | ');
-      default: return s.t;
-    }
-  }
-
   // ------------------------------------------------------------------ value tree
   function metaText(v) {
     switch (v.$) {
@@ -440,6 +419,20 @@
   // ------------------------------------------------------------------ full bodies, headers and timing (the Network-tab details)
   const BODY_BUDGET = 150000000; // characters of raw bodies kept in the panel, oldest dropped first
   const bodyOf = (ev, side) => S.bodies.get(`${ev.frameId}:${ev.id}:${side}`);
+  /** What a call took (side 'req') or gave back ('res'). A network body is read from its full text when that has arrived, so a mock is not cut like the preview. */
+  function valueOf(ev, side) {
+    if (ev.net) {
+      const b = bodyOf(ev, side);
+      if (b && b.done && b.text) { try { return JSON.parse(b.text); } catch { /* not JSON: fall back to the preview */ } }
+      return side === 'req' ? ev.net.reqBody : ev.result;
+    }
+    return side === 'args' ? ev.args : ev.result;
+  }
+  /** Copy as TypeScript and Copy as mock for what a call gave back. A mock keeps real values unless Hide values is on. */
+  const typeAndMockButtons = (ev) => (ev.shape ? [
+    copyBtn('Copy as TypeScript', () => R.typesFrom(ev.shape, R.typeNameFor(ev, 'res'))),
+    copyBtn(S.mask ? 'Copy as mock (values hidden)' : 'Copy as mock', () => R.mockFrom(valueOf(ev, 'res'), ev.shape, { name: R.typeNameFor(ev, 'res'), hide: S.mask })),
+  ] : []);
   const fmtBytes = (n) => (n == null || Number.isNaN(n) ? '—' : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`);
   const jsonPretty = (text) => { try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return null; } };
 
@@ -729,11 +722,14 @@
     const set = (open) => { getRoot().querySelectorAll('details').forEach((d) => { d.open = open; }); };
     return [h('button', { type: 'button', onclick: () => set(true) }, 'Expand all'), h('button', { type: 'button', onclick: () => set(false) }, 'Collapse all')];
   }
-  function schemaBlock(title, sh) {
+  /** The structure of a value as a readable tree, with TypeScript for it and, when `opts.value` gives the recorded value, a mock. */
+  function schemaBlock(title, sh, opts = {}) {
+    const name = opts.name || title.replace(/[^A-Za-z0-9]+/g, '') || 'Shape';
     const root = h('ul', { class: 'tree schema' }, schemaNode(undefined, sh, false, 0));
-    const wrap = h('div', {}, h('h4', {}, title), h('div', { class: 'tools' }, ...expandTools(() => root), copyBtn('Copy as TypeScript', () => `type Shape = ${ts(sh)};`)), root,
-      h('details', { class: 'tsdoc' }, h('summary', {}, 'Show as TypeScript'), h('pre', { class: 'code' }, ts(sh))));
-    return wrap;
+    const tools = [...expandTools(() => root), copyBtn('Copy as TypeScript', () => R.typesFrom(sh, name))];
+    if (opts.value) tools.push(copyBtn(S.mask ? 'Copy as mock (values hidden)' : 'Copy as mock', () => R.mockFrom(opts.value(), sh, { name, hide: S.mask })));
+    return h('div', {}, h('h4', {}, title), h('div', { class: 'tools' }, ...tools), root,
+      h('details', { class: 'tsdoc' }, h('summary', {}, 'Show as TypeScript'), h('pre', { class: 'code' }, R.typesFrom(sh, name))));
   }
 
   let detailSig = '';
@@ -786,15 +782,15 @@
       if (isData && ev.status === 'ok') dataOutput(body, ev);
       if (ev.net && ev.resHeaders) body.append(h('h4', {}, 'Headers'), tree(ev.resHeaders), h('h4', {}, 'Body'));
       else if (isData && ev.status === 'ok') body.append(h('h4', {}, 'Full output'));
-      if (ev.status !== 'pending' || ev.result !== undefined) body.append(h('div', { class: 'tools' }, copyBtn('Copy output as JSON', () => JSON.stringify(view(ev.result), null, 2))), tree(ev.result));
+      if (ev.status !== 'pending' || ev.result !== undefined) body.append(h('div', { class: 'tools' }, copyBtn('Copy output as JSON', () => JSON.stringify(view(ev.result), null, 2)), ...typeAndMockButtons(ev)), tree(ev.result));
       if (ev.changed) body.append(h('p', { class: 'muted' }, 'Changed paths:'), tree(ev.changed));
     } else if (S.sub === 'structure') {
       const blocks = [];
-      if (ev.net) blocks.push(['Request body', ev.net.reqShape]);
-      else if (ev.argsShape) blocks.push(['Input (arguments)', ev.argsShape]);
-      if (ev.shape) blocks.push([ev.net ? 'Response body' : 'Output', ev.shape]);
+      if (ev.net) blocks.push(['Request body', ev.net.reqShape, { name: R.typeNameFor(ev, 'req'), value: () => valueOf(ev, 'req') }]);
+      else if (ev.argsShape) blocks.push(['Input (arguments)', ev.argsShape, { name: R.typeNameFor(ev, 'args'), value: () => valueOf(ev, 'args') }]);
+      if (ev.shape) blocks.push([ev.net ? 'Response body' : 'Output', ev.shape, { name: R.typeNameFor(ev, 'res'), value: () => valueOf(ev, 'res') }]);
       if (!blocks.length) body.append(h('p', { class: 'muted' }, 'No structure recorded for this entry.'));
-      for (const [title, sh] of blocks) body.append(schemaBlock(title, sh));
+      for (const [title, sh, opts] of blocks) body.append(schemaBlock(title, sh, opts));
       if (blocks.length) body.append(h('p', { class: 'note' }, 'A ? after a name means that key was missing in some items. For a list, “each item” is the merged shape of up to 20 items.'));
     } else if (S.sub === 'network') {
       networkSub(body, ev);
@@ -932,6 +928,7 @@
   function renderHealth() {
     const out = clear($('#health-out'));
     const st = mergedStatus();
+    const sup = R.supportNote(st.version);
     const row = (label, ok, detail) => h('tr', {}, h('td', {}, label), h('td', { class: ok === true ? 'ok-t' : ok === false ? 'bad-t' : 'warn-t' }, ok === true ? '✓' : ok === false ? '✗' : '…'), h('td', {}, detail));
     const f = R.findings(S.events);
     const bad = f.filter((x) => x.level === 'bad').length;
@@ -943,6 +940,7 @@
           row('Hook attached to the page', S.bridges > 0 || S.statusByFrame.size > 0, S.statusByFrame.size ? `${plural(S.statusByFrame.size, 'frame')} reporting` : 'Reload the page after turning Lens on.'),
           row('PCore found', st.pcore ? true : S.enabled ? null : false, st.pcore ? `${st.pcoreMethods ?? '?'} methods` : 'Not on this page yet. Constellation apps load PCore a moment after the page; if the app is inside an iframe on another host, turn Lens on for that host too.'),
           row('Pega runtime version', st.version ? !/unknown/.test(st.version) : null, st.version || 'Waiting for PCore.'),
+          row('How far Lens is checked on this version', sup.level === 'live' ? true : null, sup.text),
           row('Store watched (state changes)', st.store ? true : st.pcore ? null : false, st.store ? 'State changes and dispatched actions are recorded.' : 'Waiting for PCore.getStore(). If it never turns green, your build may not expose the store; PCore and network recording still work.'),
           row('Components discovered', st.react ? true : null, st.react ? `${st.reactMode || 'React'} · PConnect calls from components are recorded.` : 'No Constellation components rendered yet, or they are inside a closed shadow root.'),
           row('Events recorded', S.events.length > 0 ? true : null, `${S.events.length} in this panel`),

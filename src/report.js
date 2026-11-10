@@ -66,7 +66,9 @@
       else if (ev.status === 'error' && ev.http == null) { bad = true; lines.push('The request never got a response (network error, blocked or cancelled).'); }
       else {
         bad = ev.status === 'error';
-        lines.push(`Answered HTTP ${ev.http} in ${ev.ms} ms with ${describeShape(ev.shape)}${ev.bytes ? ` (${(ev.bytes / 1024).toFixed(1)} KB)` : ''}.`);
+        if (ev.streaming) lines.push(`Answered HTTP ${ev.http} as a stream that is still open. What is shown has arrived so far${ev.bytes ? ` (${(ev.bytes / 1024).toFixed(1)} KB)` : ''}.`);
+        else if (ev.streamNote) lines.push(`Answered HTTP ${ev.http} as a stream. ${ev.streamNote}`);
+        else lines.push(`Answered HTTP ${ev.http} in ${ev.ms} ms with ${describeShape(ev.shape)}${ev.bytes ? ` (${(ev.bytes / 1024).toFixed(1)} KB)` : ''}.`);
         if (HTTP_HELP[ev.http]) lines.push(HTTP_HELP[ev.http]);
       }
       return { lines, bad };
@@ -328,7 +330,158 @@
   }
   const countViews = (roots) => roots.reduce((n, r) => n + 1 + countViews(r.children), 0);
 
-  const api = { nestViews, countViews, viewPath, plural, fmtTime, KIND, HTTP_HELP, labelCategory, describeShape, explain, rowsOf, rowCount, itemShape, columnsOf, typeName, isDataCall, dataInfo, networkOf, isFailed, findings, issueMarkdown, issuesMarkdown, issuesJson };
+  // ---------------------------------------------------------------- how far Lens has been checked against each Pega version
+  /**
+   * Says, in plain words, how far Lens has been checked against a Pega version. It claims only what was done: it ran live on
+   * Pega 24.2.5 (PCore 24.2.5, React 17+). Pega 25.1 and 26.1 were checked by comparing the published PCore and PConnect typings
+   * with the calls Lens reads, not by running it on a live app. `level` is 'live', 'typings', 'unknown' or 'untested'.
+   */
+  function supportNote(version) {
+    const m = /^(\d+)\.(\d+)/.exec(String(version || ''));
+    if (!m) return { level: 'unknown', text: 'Lens could not read the Pega version, so it cannot say how far it has been checked on this app.' };
+    const major = Number(m[1]);
+    if (major === 24) return { level: 'live', text: 'Run live on Pega 24.2.5. This is the release line it was verified on.' };
+    if (major === 25) return { level: 'typings', text: 'Checked against the Pega 25.1 PCore and PConnect typings. Not yet run live on a 25.x app.' };
+    if (major === 26) return { level: 'typings', text: 'Checked against the Pega 26.1 PCore and PConnect typings: every call Lens reads is still there, and streamed data pages are handled. Not yet run live on a 26.x app.' };
+    return { level: 'untested', text: `Lens has not been checked on Pega ${m[1]}.${m[2]}. It reads PCore and PConnect by what they expose, so it may still work: use Health to see what attached.` };
+  }
+
+  // ---------------------------------------------------------------- TypeScript types and mock data from what was recorded
+  const pascal = (s) => {
+    const name = String(s).replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'Item';
+    return /^\d/.test(name) ? `T${name}` : name;
+  };
+  const isIdent = (k) => /^[A-Za-z_$][\w$]*$/.test(k);
+  const propKey = (k) => (isIdent(k) ? k : JSON.stringify(k));
+
+  /**
+   * TypeScript for a recorded shape: one named `export interface` per object, children first and the root last, so the text can be
+   * pasted into a file as it is. Optional keys (missing in some items) get a `?`. A key can only be optional if the recording
+   * showed an item without it, so the types are a good starting point, not a guarantee. Shapes the hook cut short become unknown.
+   */
+  function typesFrom(shape, rootName = 'Root') {
+    const decls = [];
+    const used = new Set();
+    const claim = (want) => {
+      const base = pascal(want);
+      let name = base;
+      let i = 2;
+      while (used.has(name)) name = `${base}${i++}`;
+      used.add(name);
+      return name;
+    };
+    const ref = (s, hint) => {
+      if (!s) return 'unknown';
+      switch (s.t) {
+        case 'object': {
+          if (s.deep) return 'Record<string, unknown>';
+          const keys = Object.keys(s.props || {});
+          if (!keys.length) return s.n ? 'Record<string, unknown>' : 'Record<string, never>';
+          const name = claim(hint);
+          const lines = keys.map((k) => `  ${propKey(k)}${s.props[k].opt ? '?' : ''}: ${ref(s.props[k], name + pascal(k))};`);
+          const more = s.n > keys.length ? `\n  // …and ${s.n - keys.length} more keys, not shown` : '';
+          decls.push(`export interface ${name} {\n${lines.join('\n')}${more}\n}`);
+          return name;
+        }
+        case 'array': {
+          if (!s.item) return 'unknown[]';
+          const inner = ref(s.item, `${hint}Item`);
+          return /[|&(]/.test(inner) ? `(${inner})[]` : `${inner}[]`;
+        }
+        case 'union': {
+          const parts = [];
+          s.of.forEach((x, i) => { const t = ref(x, i ? `${hint}Variant${i + 1}` : hint); if (!parts.includes(t)) parts.push(t); });
+          parts.sort((a, b) => (a === 'null') - (b === 'null')); // null last, the way it is usually written
+          return parts.join(' | ');
+        }
+        case 'string': case 'number': case 'boolean': case 'bigint': case 'symbol': case 'undefined': return s.t;
+        case 'null': return 'null';
+        case 'date': return 'Date';
+        case 'function': return '(...args: unknown[]) => unknown';
+        case 'promise': return 'Promise<unknown>';
+        default: return 'unknown'; // node, circular, truncated
+      }
+    };
+    const top = ref(shape, rootName);
+    if (!decls.length || !decls[decls.length - 1].startsWith(`export interface ${top} `)) decls.push(`export type ${claim(rootName)} = ${top};`);
+    return decls.join('\n\n');
+  }
+
+  const SECRET_KEY = /authorization|cookie|token|csrf|api[-_]?key|secret|pzauth|password|session/i;
+
+  /** A value as TypeScript source. The hook's markers (a cut-off list, a function) become comments or placeholders. */
+  function source(v, indent = 0) {
+    const pad = '  '.repeat(indent);
+    if (v === undefined) return 'undefined';
+    if (v === null) return 'null';
+    if (typeof v === 'string') return JSON.stringify(v);
+    if (typeof v !== 'object') return String(v);
+    if (isMeta(v)) return v.$ === 'fn' ? '() => undefined' : v.$ === 'undefined' ? 'undefined' : 'null /* not recorded */';
+    if (Array.isArray(v)) {
+      if (!v.length) return '[]';
+      const rows = v.map((x) => (isMeta(x) && x.$ === 'more' ? `${pad}  // …${x.n} more ${x.n === 1 ? 'item' : 'items'}, not included` : `${pad}  ${source(x, indent + 1)},`));
+      return `[\n${rows.join('\n')}\n${pad}]`;
+    }
+    const keys = Object.keys(v);
+    if (!keys.length) return '{}';
+    return `{\n${keys.map((k) => `${pad}  ${propKey(k)}: ${source(v[k], indent + 1)},`).join('\n')}\n${pad}}`;
+  }
+
+  /**
+   * A value ready to be written out as mock data. Secret-looking keys are always replaced. With `hide`, every value is replaced by an
+   * empty one of its type (so the file has the structure and none of the data). Lists are cut to `rows` items.
+   */
+  function prepareMock(v, hide, rows, key) {
+    if (isMeta(v)) return v;
+    if (Array.isArray(v)) {
+      const real = v.filter((x) => !(isMeta(x) && x.$ === 'more'));
+      const out = real.slice(0, rows).map((x) => prepareMock(x, hide, rows));
+      const rest = v.reduce((n, x) => n + (isMeta(x) && x.$ === 'more' ? x.n : 0), 0) + Math.max(0, real.length - rows);
+      if (rest > 0) out.push({ $: 'more', n: rest });
+      return out;
+    }
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, prepareMock(x, hide, rows, k)]));
+    if (typeof v === 'string' && key && SECRET_KEY.test(key)) return '[redacted]';
+    if (!hide) return v;
+    return typeof v === 'string' ? '' : typeof v === 'number' ? 0 : typeof v === 'boolean' ? false : v;
+  }
+
+  /**
+   * A mock.ts for a recorded value: its types (typesFrom) and `export const mock` typed with them. `opts.hide` writes structure only,
+   * `opts.rows` is how many list items to keep (3 by default). The header says whether the values are real, because a recording of a
+   * live app can hold data that should not be committed.
+   */
+  function mockFrom(value, shape, opts = {}) {
+    const name = pascal(opts.name || 'Root');
+    const hide = !!opts.hide;
+    const rows = opts.rows || 3;
+    const note = hide
+      ? 'Values were hidden: text is empty, numbers are 0 and booleans are false. Fill in sample data before you use it.'
+      : 'The values below are real. Check them for anything private before you share or commit this file.';
+    const types = shape ? typesFrom(shape, name) : '';
+    const typed = shape ? `: ${name}` : '';
+    return [`// Mock data for ${name}, recorded with Lens.`, `// ${note}`, '', types, types ? '' : null, `export const mock${typed} = ${source(prepareMock(value, hide, rows))};`, ''].filter((x) => x !== null).join('\n');
+  }
+
+  /** A readable name for the type of what a call took or returned: the data page or the end of the address, then Request or Response. */
+  function typeNameFor(ev, side) {
+    const lastPath = (url) => {
+      let segs = [];
+      try { segs = new URL(url, 'http://x').pathname.split('/').filter(Boolean); } catch { segs = []; }
+      // A case or work id (OPS-CASE-12, ORG-APP-WORK%20C-1001), a number or a long hex id names a record, not a kind of data.
+      const looksLikeId = (s) => /^(\d+|[0-9a-f-]{16,})$/i.test(s) || (/\d$/.test(s) && /[-%]/.test(s));
+      const real = segs.filter((s) => !looksLikeId(s));
+      return real[real.length - 1] || 'Data';
+    };
+    let base;
+    if (ev.net) base = lastPath(ev.net.url || ev.net.urlFull || '');
+    else if (isDataCall(ev, null) && dataInfo(ev).name) base = dataInfo(ev).name;
+    else base = String(ev.name || 'Call').split('.').pop().replace(/\(\)/g, '') || 'Call';
+    const suffix = ev.net ? (side === 'req' ? 'Request' : 'Response') : side === 'args' ? 'Input' : 'Output';
+    return `${pascal(base)}${suffix}`;
+  }
+
+  const api = { nestViews, countViews, viewPath, plural, fmtTime, KIND, HTTP_HELP, labelCategory, describeShape, explain, rowsOf, rowCount, itemShape, columnsOf, typeName, isDataCall, dataInfo, networkOf, isFailed, findings, issueMarkdown, issuesMarkdown, issuesJson, supportNote, typesFrom, mockFrom, typeNameFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.XrayReport = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

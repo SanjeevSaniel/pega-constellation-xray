@@ -27,7 +27,7 @@
   const internal = (fn, fallback) => { st.internal++; try { return fn(); } catch { return fallback; } finally { st.internal--; } };
 
   const READ_RE = /^(get|is|has|resolve|find|read|to)[A-Z_]|^(getState|subscribe)$/;
-  const WRITE_RE = /^(set|update|trigger|open|save|create|refresh|close|dispatch|invoke|run|show|navigate|publish|notify|clear|accept|ignore|delete|submit|validate|add|remove|reset)/i;
+  const WRITE_RE = /^(set|update|trigger|open|save|create|refresh|close|dispatch|invoke|run|show|navigate|publish|notify|clear|accept|ignore|delete|submit|validate|add|remove|reset|switch)/i;
   const DATA_RE = /(getData|getPageData|getDataAsync|invokeRestApi|saveData|getCaseAttachments|getDataViewMetadata|getDataPageMetadata)/;
 
   function classify(method) {
@@ -423,6 +423,12 @@
     return 'other';
   }
   const textual = (ct) => !ct || /json|text|xml|javascript|x-www-form-urlencoded|graphql/i.test(ct);
+  // Pega 26 can stream a data page (Accept: text/event-stream). A stream may never end, so it is read in pieces and capped,
+  // instead of waiting for a whole body that might not come.
+  const streaming = (ct) => /event-stream|x-ndjson|stream\+json/i.test(ct || '');
+  const STREAM_CAP = 1000000; // characters kept of one stream
+  const STREAM_MS = 60000; // the longest one stream is followed
+  const STREAM_FLUSH_MS = 400; // how often the panel is given what has arrived so far
   // Bodies are kept in full as raw text and sent to the panel in pieces, so a big response is never dropped.
   const PARSE_LIMIT = 8000000; // the largest body parsed into a tree; a bigger one still keeps its full raw text
   const RAW_LIMIT = 30000000; // the longest raw body kept (characters)
@@ -456,6 +462,38 @@
     if (typeof text !== 'string') return text;
     if (text.length > PARSE_LIMIT) return `[large body, ${text.length} characters: the Response tab has the full text]`;
     try { return JSON.parse(text); } catch { return text; }
+  }
+
+  /** Follows a streamed response through a clone, so the page's own reader is never touched. */
+  function followStream(res, ev, base, t0, url) {
+    let reader;
+    try { reader = res.clone().body.getReader(); } catch { patch(ev, { ...base, result: '[stream not recorded]' }); timingFor(ev, t0, url); return; }
+    const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
+    let text = '';
+    let ended = false;
+    let lastFlush = 0;
+    let timer = 0;
+    const finish = (note) => {
+      if (ended) return;
+      ended = true;
+      clearTimeout(timer);
+      try { reader.cancel(); } catch { /* already closed */ }
+      patch(ev, { ...base, streaming: false, result: snap(text), shape: shape(text), bytes: text.length, ...(note ? { streamNote: note } : {}) });
+      sendBody(ev.id, 'res', text);
+      timingFor(ev, t0, url);
+    };
+    timer = setTimeout(() => finish(`The stream was still open after ${STREAM_MS / 1000} s, so only what arrived by then was recorded.`), STREAM_MS);
+    const pump = () => reader.read().then(({ done, value }) => {
+      if (ended) return;
+      if (done) { finish(); return; }
+      text += typeof value === 'string' ? value : decoder ? decoder.decode(value, { stream: true }) : '';
+      if (text.length >= STREAM_CAP) { text = text.slice(0, STREAM_CAP); finish(`Only the first ${STREAM_CAP} characters of the stream were recorded.`); return; }
+      const now = perf();
+      if (now - lastFlush > STREAM_FLUSH_MS) { lastFlush = now; patch(ev, { ...base, streaming: true, result: snap(text), bytes: text.length }); }
+      pump();
+    }, () => finish());
+    patch(ev, { ...base, streaming: true, result: '', bytes: 0 });
+    pump();
   }
 
   const absUrl = (u) => { try { return new URL(u, G.location?.href).href; } catch { return String(u); } };
@@ -541,6 +579,7 @@
             const ct = res.headers?.get?.('content-type') || '';
             const base = { ms: Math.round(perf() - t0), http: res.status, statusText: res.statusText, status: res.ok ? 'ok' : 'error', resHeaders: headersToObj(res.headers), resHeadersFull: headersToObj(res.headers, true), finalUrl: res.url || undefined, redirected: !!res.redirected, contentType: ct };
             if (!textual(ct)) { patch(ev, { ...base, result: `[${ct || 'binary'} not recorded]` }); timingFor(ev, t0, url); return; }
+            if (streaming(ct)) { followStream(res, ev, base, t0, url); return; }
             res.clone().text().then(
               (txt) => { const body = parseBody(txt); patch(ev, { ...base, result: snap(body), shape: shape(body), bytes: txt.length }); sendBody(ev.id, 'res', txt); timingFor(ev, t0, url); },
               () => patch(ev, base),
@@ -722,6 +761,11 @@
         childCount: (() => { const c = read('getChildren'); return Array.isArray(c) ? c.length : undefined; })(),
         reactProps: Object.keys(hit.fiber.memoizedProps || {}),
       };
+      // Added in Pega 26.1: left out on older versions, where there is nothing to read.
+      const dataInfo = read('getDataInfo');
+      if (dataInfo !== undefined) out.dataInfo = dataInfo;
+      const relativePath = read('getRelativePath');
+      if (relativePath !== undefined) out.relativePath = relativePath;
       return { found: true, data: snap(out, { n: 6000 }), shape: shape(out, { n: 6000 }) };
     }, { found: false, reason: 'Could not read this component.' });
   }
@@ -877,6 +921,6 @@
     else if (c.cmd === 'rescan') { scan(document.documentElement); status({ react: st.status.react }); }
   });
 
-  G.__pegaXray = { version: '0.3.1', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
+  G.__pegaXray = { version: '0.3.2', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
   post({ type: 'status', status: st.status });
 })();

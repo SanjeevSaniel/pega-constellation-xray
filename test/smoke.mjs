@@ -10,6 +10,20 @@ let bigOn = false;
 const listeners = [];
 const consoleCalls = [];
 let storeCb = null;
+// A streamed response (Pega 26 can stream a data page as text/event-stream): its chunks arrive one by one, as bytes.
+let streamMode = null; // { chunks: string[], cancelled: boolean } while a test streams
+function streamingResponse() {
+  const enc = new TextEncoder();
+  const chunks = streamMode.chunks.map((c) => enc.encode(c));
+  return {
+    ok: true, status: 200, statusText: 'OK',
+    headers: { get: () => 'text/event-stream', forEach: (cb) => cb('text/event-stream', 'content-type') },
+    clone() {
+      let i = 0;
+      return { body: { getReader: () => ({ read: async () => (i < chunks.length ? { done: false, value: chunks[i++] } : { done: true, value: undefined }), cancel() { streamMode.cancelled = true; } }) } };
+    },
+  };
+}
 
 const ctx = {
   console: { log: console.log, error: (...a) => consoleCalls.push(['error', ...a]), warn: (...a) => consoleCalls.push(['warn', ...a]) }, setTimeout, clearTimeout, Promise, Date, Error, Map, Set, WeakMap, WeakSet, Proxy, Reflect, JSON, Object, Array, Number, String, Symbol,
@@ -17,13 +31,13 @@ const ctx = {
   location: { href: 'https://pega.example.test/prweb/app' },
   postMessage: (m) => posted.push(m),
   addEventListener: (type, fn) => listeners.push([type, fn]),
-  fetch: async () => ({
+  fetch: async () => (streamMode ? streamingResponse() : {
     ok: true, status: 200, statusText: 'OK',
     headers: { get: () => 'application/json', forEach: (cb) => cb('application/json', 'content-type') },
     clone() { return { text: async () => (bigOn ? BIG : JSON.stringify({ data: [{ id: 1 }, { id: 2, note: 'x' }] })) }; },
   }),
   Request: class {},
-  URL, URLSearchParams,
+  URL, URLSearchParams, TextDecoder,
 };
 ctx.window = ctx;
 ctx.globalThis = ctx;
@@ -129,6 +143,27 @@ assert.equal(bigParts.map((m) => m.data).join(''), BIG, 'the full text arrives, 
 assert.equal(bigParts[0].truncated, false);
 assert.ok(typeof bigEv.result === 'object', 'the parsed preview is still built');
 assert.ok(!/not recorded|larger than/.test(JSON.stringify(bigEv.result).slice(0, 200)), 'no too-large marker');
+
+// ---- a streamed response (Pega 26.1 data pages can stream): read through a clone, in pieces, never waited on whole
+const SSE = 'data: {"row":1}\n\ndata: {"row":2}\n\n';
+streamMode = { chunks: ['data: {"row":1}\n\n', 'data: {"row":2}\n\n'], cancelled: false };
+const streamRes = await ctx.fetch('https://pega.example.test/prweb/api/v1/data_views/D_Stream', { method: 'GET', headers: { Accept: 'text/event-stream' } });
+assert.equal(streamRes.status, 200, "the page's own response is returned untouched");
+await new Promise((r2) => setTimeout(r2, 60));
+const streamEv = st.buf.filter((e) => e.kind === 'net').pop();
+assert.equal(streamEv.streaming, false, 'a stream that ended is marked finished');
+assert.equal(streamEv.result, SSE, 'everything that streamed is recorded as text');
+assert.equal(rawFor(streamEv.id, 'res').map((m) => m.data).join(''), SSE, 'the full stream text is sent');
+assert.equal(streamEv.http, 200);
+assert.ok(!streamEv.streamNote, 'a stream that ended on its own has no note');
+streamMode = { chunks: ['x'.repeat(1100000)], cancelled: false };
+await ctx.fetch('https://pega.example.test/prweb/api/v1/data_views/D_Endless', { method: 'GET' });
+await new Promise((r2) => setTimeout(r2, 60));
+const capEv = st.buf.filter((e) => e.kind === 'net').pop();
+assert.equal(capEv.bytes, 1000000, 'a stream is cut at one million characters');
+assert.match(capEv.streamNote, /first 1000000 characters/, 'the cut is explained');
+assert.equal(streamMode.cancelled, true, 'the clone reader is stopped once the cap is reached');
+streamMode = null;
 
 // ---- views: the mounted components as a tree (against a tiny fake page)
 const mkP = (name, type, label) => ({ getActionsApi() {}, getValue() {}, getRawMetadata: () => ({ name, type }), getContextName: () => 'app/primary_1', getPageReference: () => 'caseInfo.content', getConfigProps: () => ({ label, visibility: true }) });

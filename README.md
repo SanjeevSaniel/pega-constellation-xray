@@ -35,11 +35,13 @@ Nothing runs on any site you have not switched on. The toolbar icon opens a shor
 
 Values are shown as trees with a peek at the keys when a branch is closed, long text shortened until you click it, and Expand all / Collapse all. The list keeps your place: clicking a row never moves it, and new rows only pull the list down when you were already at the bottom (otherwise a "↓ N new" button appears). The mark in the header plays one pulse whenever something is recorded.
 
+**Copy as TypeScript** turns the recorded structure of any request, response, argument list or call output into named interfaces: one `export interface` per object, children first, optional keys marked with `?`. **Copy as mock** writes a `mock.ts` with those types and a sample of the recorded data (lists cut to three items, with a note of how many were left out). A mock keeps real values unless **Hide values** is on, in which case it keeps the structure and empties the values. Keys that look like secrets (token, password, session and so on) are always replaced. The types are inferred from what was recorded, so an optional key is one that was missing in some items: check them before you rely on them.
+
 **Hide values** replaces every value with its type (`‹string›`) in the panel, in copied reports and in exports, so you can share a screenshot or file showing structure only. Error messages are kept, because they say what went wrong; check them before sharing.
 
 ## Versions
 
-Checks are by capability, not version number, so one build is meant to cover **Pega 23, 24, 25, 26 and later**:
+Checks are by capability, not version number, so one build is meant to work across Pega releases. What has actually been checked is in the tables below, and these are the ways Lens finds things:
 
 - `window.PCore` is captured the moment the runtime assigns it, and the version is read with `PCore.getPCoreVersion()` when that exists.
 - PConnect handles are found by walking React fibers (React 16 and 17+), including inside shadow roots.
@@ -48,6 +50,28 @@ Checks are by capability, not version number, so one build is meant to cover **P
 If a future runtime changes shape, **Health** shows which part stopped matching and **Copy diagnostics** gives you something to report.
 
 > Tested live: it has been run on a real Pega Constellation app (PCore 24.2.5, React 17+). There it attached to PCore, the store and the components, and the Activity, Data pages, Network, Views and Issues tabs filled with real traffic. Not yet confirmed live: the **Pick on page** picker, and other Pega versions. It is also tested against a fake runtime (`npm test`) and the panel against stubbed Chrome APIs. Use **Health** to see what attached on your app, and treat the first run on each version as a check.
+
+### What has been checked on each Pega version
+
+| Pega | How far | Checked by |
+| --- | --- | --- |
+| 24.2.5 | **Run live** | A real Constellation app (PCore 24.2.5, React 17+) |
+| 25.1 | Typings only | The published PCore and PConnect typings (`@pega/pcore-pconnect-typedefs` 4.1.4) compared with the calls Lens reads |
+| 26.1 | Typings only | The same, against 5.1.1 (the `release-26.1` tag) |
+| Anything else | Not checked | Lens reads PCore and PConnect by what they expose, so it may still work. **Health** shows what attached |
+
+"Typings only" means the calls Lens reads exist with the same names and shapes. It does not mean Lens has been run on a live 25 or 26 app. If you try it there, **Health** and **Copy diagnostics** are the most useful things to send back. **Health** also shows this row for the version it sees.
+
+### What Pega 26.1 changed, and what Lens does about it
+
+Comparing the 25.1 and 26.1 typings (146 of about 900 declaration files changed):
+
+- **Everything Lens reads is still there**: `getPCoreVersion`, `getStore`, `getDataApiUtils`, `getDataPageUtils`, `getContainerUtils`, `getComponentsRegistry`, `getPubSubUtils` and the PConnect getters. `getPCoreVersion()` now returns `26.1.0`.
+- **New PCore getters**: `getGenAIUtils` (with `rewriteText`), `getAutosaveUtils`, `getNameSpaceUtils`, `getNetworkUtils`, `getMashupBridge`, `getConfirmDialogService`, and `switchLocale`. Lens records PCore calls as they are made, so these show up in Activity with no change. `switch…` calls are now listed as writes.
+- **New PConnect methods**: `getDataInfo()` and `getRelativePath()`. The Component tab shows them when a component has them, and leaves them out on older versions.
+- **Streamed data pages**: a data page can now ask for a stream (`enableStreaming`, `Accept: text/event-stream`). Lens reads a stream in pieces through a clone, for up to 1,000,000 characters or 60 seconds, instead of waiting for a body that may never end. The page's own response is never touched, and the Summary tab says when a stream was still open or was cut.
+- **React and components**: the 26.1 builder uses React 18 and components still receive `getPConnect`, so finding components is unchanged.
+- **Server paths**: the typings show no new paths for data and case calls.
 
 The **Data pages** tab reads the data page name and parameters from the call's arguments by their values (a string that is not a context, an object with a parameters-like key). Lens does not know Pega's exact signatures, so the tab says "read from the argument values" and always shows the raw arguments too.
 

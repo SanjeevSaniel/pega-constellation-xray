@@ -96,4 +96,66 @@ assert.equal(containers[0].children[0].children.length, 0, 'the form stays as a 
 assert.deepEqual(R.viewPath(flat, 3), ['RootView', 'DefaultForm', 'TextInput'], 'the path runs from the outermost component down');
 assert.deepEqual(R.viewPath(flat, 5), ['Footer']);
 
+// ---- support notes: only what was actually checked is claimed
+assert.equal(R.supportNote('24.2.5').level, 'live');
+assert.equal(R.supportNote('25.1.3').level, 'typings');
+assert.equal(R.supportNote('26.1.0').level, 'typings');
+assert.match(R.supportNote('26.1.0').text, /Not yet run live on a 26\.x app/, 'Pega 26 is not claimed as run live');
+assert.equal(R.supportNote('27.1.0').level, 'untested');
+assert.equal(R.supportNote(undefined).level, 'unknown');
+assert.equal(R.supportNote('unknown (getPCoreVersion not available)').level, 'unknown');
+
+// ---- TypeScript types from a recorded shape
+const apiShape = {
+  t: 'object', n: 3,
+  props: {
+    data: { t: 'array', len: 2, item: { t: 'object', n: 3, props: { id: { t: 'number' }, 'full-name': { t: 'string', opt: true }, tag: { t: 'union', of: [{ t: 'null' }, { t: 'string' }] } } } },
+    count: { t: 'number' },
+    meta: { t: 'object', n: 0, props: {} },
+  },
+};
+const tsText = R.typesFrom(apiShape, 'DCustomersResponse');
+assert.match(tsText, /export interface DCustomersResponseDataItem \{/, 'a nested object becomes its own named interface');
+assert.match(tsText, /export interface DCustomersResponse \{\n {2}data: DCustomersResponseDataItem\[\];/, 'a list of objects is an array of that interface');
+assert.match(tsText, /"full-name"\?: string;/, 'a key that is not an identifier is quoted, and an optional key gets a ?');
+assert.match(tsText, /tag: string \| null;/, 'null goes last in a union');
+assert.match(tsText, /meta: Record<string, never>;/, 'an empty object is an empty record');
+assert.ok(tsText.indexOf('DataItem {') < tsText.indexOf('DCustomersResponse {'), 'children are declared before the root');
+assert.equal(R.typesFrom({ t: 'array', len: 1, item: { t: 'object', n: 1, props: { a: { t: 'string' } } } }, 'List'), 'export interface ListItem {\n  a: string;\n}\n\nexport type List = ListItem[];', 'a root list becomes an alias of its item type');
+assert.equal(R.typesFrom({ t: 'string' }, 'Plain'), 'export type Plain = string;');
+assert.match(R.typesFrom({ t: 'object', n: 150, props: { a: { t: 'string' } } }, 'Wide'), /…and 149 more keys, not shown/, 'a cut-off object says so');
+assert.equal(R.typesFrom({ t: 'object', deep: true }, 'Deep'), 'export type Deep = Record<string, unknown>;', 'a shape cut by the depth limit is a loose record');
+assert.equal(R.typesFrom({ t: 'object', n: 1, props: { x: { t: 'truncated' } } }, 'T'), 'export interface T {\n  x: unknown;\n}', 'a cut-short shape is unknown');
+const clash = R.typesFrom({ t: 'object', n: 2, props: { a: { t: 'object', n: 1, props: { x: { t: 'number' } } }, b: { t: 'object', n: 1, props: { x: { t: 'string' } } } } }, 'Root');
+assert.equal((clash.match(/export interface /g) || []).length, 3, 'two different nested objects get three interfaces');
+assert.match(R.typesFrom({ t: 'object', n: 1, props: { '1st': { t: 'string' } } }, '9lives'), /export interface T9lives \{/, 'a type name never starts with a digit');
+
+// ---- mock.ts from a recorded value
+const rec = { data: [{ id: 1, 'full-name': 'Ada', tag: null }, { id: 2, tag: 'x' }, { id: 3, tag: 'y' }, { id: 4, tag: 'z' }], count: 4, meta: {} };
+const mock = R.mockFrom(rec, apiShape, { name: 'DCustomersResponse' });
+assert.match(mock, /^\/\/ Mock data for DCustomersResponse, recorded with Lens\./);
+assert.match(mock, /The values below are real\. Check them for anything private/, 'a mock with real values says so');
+assert.match(mock, /export const mock: DCustomersResponse = \{/, 'the mock is typed with the generated interface');
+assert.match(mock, /"full-name": "Ada"/);
+assert.match(mock, /\/\/ …1 more item, not included/, 'a list is cut to three items and says how many were left out');
+assert.equal((mock.match(/id: \d/g) || []).length, 3);
+const hidden = R.mockFrom(rec, apiShape, { name: 'DCustomersResponse', hide: true });
+assert.match(hidden, /Values were hidden/, 'a hidden mock says so');
+assert.ok(!hidden.includes('Ada') && !hidden.includes('"x"'), 'no real value appears when values are hidden');
+assert.match(hidden, /id: 0,/, 'numbers become 0');
+assert.match(hidden, /tag: null,/, 'null stays null');
+const secrets = R.mockFrom({ user: 'ada', authToken: 'abc123', session: { id: 's-1' }, apiKey: 'k' }, null, { name: 'Login' });
+assert.ok(!secrets.includes('abc123') && !secrets.includes('"k"'), 'secret-looking keys are always replaced');
+assert.match(secrets, /authToken: "\[redacted\]"/);
+assert.match(secrets, /export const mock = \{/, 'with no shape the mock is not annotated');
+assert.match(R.mockFrom({ f: { $: 'fn', name: 'go' }, u: { $: 'undefined' }, c: { $: 'circular' } }, null), /f: \(\) => undefined,\n {2}u: undefined,\n {2}c: null \/\* not recorded \*\//, "the hook's markers become code");
+assert.match(R.mockFrom({ rows: [1, 2, { $: 'more', n: 28 }] }, null), /…28 more items, not included/, 'a list the hook already cut keeps its count');
+
+// ---- readable type names
+assert.equal(R.typeNameFor({ net: { url: 'https://h/prweb/api/v1/data_views/D_Customers' } }, 'res'), 'DCustomersResponse');
+assert.equal(R.typeNameFor({ net: { url: 'https://h/prweb/api/v1/cases/OPS-CASE-12/assignments' } }, 'req'), 'AssignmentsRequest');
+assert.equal(R.typeNameFor({ net: { url: 'https://h/prweb/api/v1/cases/OPS-CASE-12' } }, 'res'), 'CasesResponse', 'a case id is not used as a name');
+assert.equal(R.typeNameFor(dataCall, 'res'), 'DCustomersOutput', 'a data call is named for its data page');
+assert.equal(R.typeNameFor(ev({ kind: 'pcore', name: 'PCore.getEnvironmentInfo().getTimeZone' }), 'args'), 'GetTimeZoneInput');
+
 console.log('ok: report logic, all assertions passed');

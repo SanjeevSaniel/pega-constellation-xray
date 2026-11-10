@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Checked against Pega 26.1, and it can now write code from what it records. The Web Store package (0.3.2) is unchanged.
+
+- **Copy as TypeScript**: turns the recorded structure of a request, response, argument list or call output into named interfaces (one per object, children first, optional keys marked), ready to paste. It replaces the old one-block `type Shape`.
+- **Copy as mock**: writes a `mock.ts` with those types and a sample of the recorded data (lists cut to three items). It keeps real values unless Hide values is on, then it keeps the structure and empties the values. Secret-looking keys are always replaced. The header says which it is.
+- **Pega 26.1**: compared the 24.2.5, 25.1 and 26.1 PCore and PConnect typings. Every call Lens reads is still there. Streamed data pages (`Accept: text/event-stream`) are now read in pieces, capped at 1,000,000 characters or 60 seconds, instead of waiting for a body that may never end. The Component tab shows the new `getDataInfo()` and `getRelativePath()` when a component has them. `switch…` calls such as `switchLocale` are listed as writes. The new PCore getters (`getGenAIUtils`, `getAutosaveUtils`, `getNetworkUtils` and others) are recorded like any other call.
+- **Health**: says how far Lens has been checked on the version it sees (run live on 24.2.5, typings only on 25.1 and 26.1, not checked elsewhere). The README has the same table.
+- **Honest limits**: not yet run on a live Pega 25 or 26 app, and the new buttons were tested through the report logic and the recorder tests, not clicked in a real DevTools panel.
+
 ## 0.3.2
 
 A new icon, ready for the Chrome Web Store. Nothing else changed.
