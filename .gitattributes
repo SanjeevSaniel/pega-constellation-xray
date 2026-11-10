@@ -4,3 +4,7 @@
 /.gitignore export-ignore
 /.gitattributes export-ignore
 /tools export-ignore
+/store export-ignore
+/README.md export-ignore
+/CHANGELOG.md export-ignore
+/CHROMEWEBSTORE.md export-ignore

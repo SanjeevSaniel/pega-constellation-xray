@@ -57,11 +57,13 @@ code { background: var(--bg2); padding: 0 4px; border-radius: 4px; }
 .banner.warn { background: color-mix(in srgb, var(--warn) 14%, var(--bg)); }
 
 /* the mark: one pulse whenever something is recorded */
-.mark .star { fill: #ffc13d; transform-box: fill-box; transform-origin: center; }
-.mark .pulse { stroke: #ffc13d; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.mark .star { transform-box: fill-box; transform-origin: center; }
+.mark .pulse { fill: none; stroke: #d4572f; opacity: 0; transform-box: fill-box; transform-origin: center; }
 .mark.ping .pulse { animation: lens-ripple .7s ease-out; }
 .mark.ping .star { animation: lens-twinkle .7s ease-out; }
-.mark.ping.bad .star { fill: var(--err); }
+.mark.ping.bad g { stroke: var(--err); }
+.mark.ping.bad .disc { fill: var(--err); }
+.mark.ping.bad .star { stroke: #fff; }
 .mark.ping.bad .pulse { stroke: var(--err); }
 @keyframes lens-ripple { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(2.5); } }
 @keyframes lens-twinkle { 0% { transform: rotate(0) scale(1); } 45% { transform: rotate(45deg) scale(1.6); } 100% { transform: rotate(45deg) scale(1); } }

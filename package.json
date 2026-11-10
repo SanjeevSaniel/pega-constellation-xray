@@ -1,6 +1,6 @@
 {
   "name": "pega-constellation-xray",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Lens: a DevTools panel that records PCore, PConnect, store and API activity in Pega Constellation apps.",
   "type": "module",

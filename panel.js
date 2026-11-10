@@ -30,16 +30,15 @@
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('width', size); svg.setAttribute('height', size); svg.setAttribute('class', 'mark'); svg.setAttribute('aria-hidden', 'true');
-    const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); svg.append(e); };
-    mk('path', { d: 'M7.9 .9C12.2 .3 20 1.3 24.5 .8C29.6 .4 31.5 2.7 31.2 7.7C30.8 12.1 31.6 20.1 31.1 24.5C30.8 29.5 28.6 31.4 24 31.1C19.4 30.8 12.6 31.5 7.6 31C2.8 30.7 .7 28.9 .9 24.2C1.2 19.5 .5 12.5 .9 7.7C1.2 3 3.3 1.1 7.9 .9Z', fill: 'var(--accent)' });
-    const line = { fill: 'none', stroke: '#fff', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-    mk('path', { d: 'M11.9 6.3C16.5 5 21.5 7.4 22.6 12C23.8 16.7 21.1 21.4 16.4 22.5C11.7 23.7 7 21.1 5.9 16.5C4.8 11.9 7.4 7.3 12.2 6.2C14 5.8 15.4 6 16.7 6.5', 'stroke-width': 2.7, ...line });
-    mk('path', { d: 'M12.6 7.2C16.4 6.3 20.7 8.2 21.6 12.2C22.6 16.2 20.4 20.2 16.5 21.2', 'stroke-width': 1.3, 'stroke-opacity': 0.4, ...line });
-    mk('path', { d: 'M21.2 21.4C22.9 23.2 24.6 25 27.3 27.6', 'stroke-width': 3, ...line });
-    mk('path', { d: 'M10.1 17.4C11.5 15.4 12.8 13.4 14.2 11.6C16 13 17.7 14.4 19.5 15.8', 'stroke-width': 1.5, 'stroke-opacity': 0.9, ...line });
-    mk('path', { d: 'M10.1 15.8C11 15.7 11.8 16.5 11.8 17.4C11.8 18.3 11 19.1 10.1 19.1C9.2 19.1 8.4 18.3 8.4 17.4C8.4 16.5 9.2 15.8 10.1 15.8Z', fill: '#fff' });
-    mk('path', { d: 'M19.4 14.1C20.3 14.1 21.1 14.8 21.2 15.7C21.2 16.6 20.4 17.4 19.5 17.4C18.6 17.4 17.8 16.7 17.8 15.8C17.8 14.9 18.5 14.1 19.4 14.1Z', fill: '#fff' });
-    mk('path', { class: 'star', d: 'M14.3 8C14.8 9.8 15 10.8 17.6 11.7C15 12.5 14.7 13.7 14.3 15.4C13.9 13.7 13.5 12.5 11 11.7C13.6 10.8 13.8 9.7 14.3 8Z' });
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform', 'translate(16 16) scale(1.1) translate(-16.85 -16.85)');
+    for (const [k, v] of Object.entries({ fill: 'none', stroke: '#d4572f', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })) g.setAttribute(k, v);
+    svg.append(g);
+    const mk2 = (attrs) => { const e = document.createElementNS(NS, 'path'); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); g.append(e); };
+    mk2({ class: 'disc', d: 'M21.2 13.6A7.6 7.6 0 1 1 6 13.6A7.6 7.6 0 1 1 21.2 13.6Z', fill: '#d4572f', 'stroke-width': 3.1 });
+    mk2({ d: 'M19.3 19.3L25.9 25.9', 'stroke-width': 3.6 });
+    mk2({ d: 'M9.07 11.49A5 5 0 0 1 11.49 9.07', stroke: '#fff', 'stroke-width': 1.2, 'stroke-opacity': 0.85 });
+    mk2({ class: 'star', d: 'M13.6 9.3V12.3M13.6 14.9V17.9M9.3 13.6H12.3M14.9 13.6H17.9M14.52 12.68L15.86 11.34M12.68 12.68L11.34 11.34M14.52 14.52L15.86 15.86M12.68 14.52L11.34 15.86', stroke: '#fff', 'stroke-width': 1.6 });
     return svg;
   }
 

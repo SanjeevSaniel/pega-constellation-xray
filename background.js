@@ -15,7 +15,7 @@ function iconFrame(t, bad) {
   for (const size of [16, 32]) {
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext('2d');
-    PeekMark.drawMark(ctx, size, t, bad ? { star: '#ff5d6c' } : {});
+    PeekMark.drawMark(ctx, size, t, bad ? { ink: '#d12d3f' } : {});
     imageData[size] = ctx.getImageData(0, 0, size, size);
   }
   return imageData;

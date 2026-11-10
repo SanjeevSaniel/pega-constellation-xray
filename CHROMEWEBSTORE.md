@@ -48,13 +48,14 @@ Remote code: none. All code is in the package. There are no external requests fr
 - Data transmitted off the device: none.
 - Sold or transferred to third parties: no. Used for anything other than the single purpose: no.
 - Sensitive headers (authorization, cookies, tokens) are hidden by default, and never included in exports or copied reports.
-- A privacy policy page is still to be written and hosted (the dashboard asks for a URL). It should say the points above in plain words.
+- Privacy policy URL (live, says the points above in plain words): https://www.sanjeevkujur.dev/lens/privacy
 
 ## Assets to prepare
 
 - Screenshots: 1280 x 800 (or 640 x 400), up to five. Suggested: Network Response, Data pages, Views with the picker, Issues, the Health tab.
-- Small promo tile: 440 x 280. Marquee (optional): 1400 x 560.
-- Icon: 128 x 128 is in the package. The store recommends about 96 x 96 of artwork with transparent padding; this icon fills the tile edge to edge, which is accepted but may look larger than neighbours.
+- Small promo tile: 440 x 280 is ready in `store/promo-440x280.png` (`node tools/make-store-assets.mjs`). Marquee (1400 x 560) is optional.
+- Icon: 128 x 128 is in the package, an orange lens with white touches on a transparent background, with about 96 x 96 of artwork inside 16 px of transparent padding, as the store recommends. The 16 and 32 px toolbar sizes are drawn larger in their square.
+- Screenshots must be retaken from this build: the ones on the Lens page predate the new icon and the name "Lens" (they say "Constellation Lens"). Use the same redacted real-app captures, 1280 x 800, no client names or URLs.
 
 ## The publishing process, step by step
 
@@ -88,7 +89,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 ## Build the upload zip
 
 ```
-git archive --format=zip -o lens-v0.3.1-store.zip HEAD
+git archive --format=zip -o lens-v0.3.2-store.zip HEAD
 ```
 
 `.gitattributes` already leaves out tests, tools and `package.json`.

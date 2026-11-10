@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+A new icon, ready for the Chrome Web Store. Nothing else changed.
+
+- **Icon**: modern and flat, on a transparent background: an orange lens (`#d4572f`) with white touches, a small glare and a burst of rays on the glass. The orange was chosen because it keeps at least 3:1 contrast on a white page, the light and dark Chrome toolbars and the dark DevTools tab strip; the white always sits on orange, never on the page. The 128 px icon keeps the store's transparent padding, and the 16 px icon drops the finer details. The toolbar icon still pulses when something is recorded, and the whole lens turns red for a failure.
+- **Store files**: `tools/make-store-assets.mjs` draws the small promo tile into `store/`. The docs and `store/` are left out of the upload zip.
+
 ## 0.3.1
 
 The name is now just **Lens** (it is still "for Pega Constellation apps"). Nothing else changed.

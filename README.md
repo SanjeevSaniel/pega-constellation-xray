@@ -18,7 +18,7 @@ Lens was called *Pega Constellation X-Ray* in 0.1. The folder and repository kee
 3. Open your Pega app, open DevTools (F12), go to the **Lens** tab (the one with the magnifier).
 4. Click **Turn on for this site** (Chrome asks for permission for that one host only), then **Reload & capture from start**.
 
-Nothing runs on any site you have not switched on. The toolbar icon opens a short reminder of these steps, and pulses whenever Lens records something in that tab (red when it recorded a failure).
+Nothing runs on any site you have not switched on. The toolbar icon opens a short reminder of these steps, and pulses whenever Lens records something in that tab (dark red when it recorded a failure).
 
 ## What each tab does
 
@@ -78,11 +78,15 @@ npm test        # drives src/hook.js against a fake runtime, and the panel's log
 | `src/hook.js` | Page-world recorder (PCore/PConnect/network/store/page errors) |
 | `src/bridge.js` | Isolated-world relay between the page and the extension |
 | `src/report.js` | The panel's pure logic: explanations, data-call reader, issue finder, views tree, copy-ready reports. Tested in `test/report.mjs` |
-| `src/mark.js` | The mark (a lens with a small constellation inside, teal to blue), drawn on a canvas. Used for the PNG icons and the animated toolbar icon |
+| `src/mark.js` | The mark: an orange lens with white touches on a transparent background, drawn on a canvas from one set of paths. Used for the PNG icons, `icons/lens.svg` and the animated toolbar icon. The panel and popup carry inline copies of the same paths |
 | `background.js` | Registers the hook per switched-on site, relays events to the panel, pulses the toolbar icon |
 | `panel.html/css/js` | The DevTools panel |
 | `popup.html` | The short reminder behind the toolbar icon |
-| `icons/` | PNG icons (Chrome does not accept SVG for these). Regenerate with `CANVAS_FROM=/path/to/a/project/with/@napi-rs/canvas/package.json node tools/make-icons.mjs` |
+| `icons/` | PNG icons (Chrome does not accept SVG for these) and `lens.svg`. The 128 px icon keeps the store's transparent padding. Regenerate with `CANVAS_FROM=/path/to/a/project/with/@napi-rs/canvas/package.json node tools/make-icons.mjs` |
+| `tools/` | `make-icons.mjs` (icons) and `make-store-assets.mjs` (the Web Store promo tile). Neither is shipped in the extension |
+| `store/` | Chrome Web Store artwork. Not shipped in the extension |
+| `CHROMEWEBSTORE.md` | Every field the store dashboard asks for, and the publishing steps |
+| `CHANGELOG.md` | What changed in each version |
 
 ## Licence
 
