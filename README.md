@@ -56,11 +56,11 @@ If a future runtime changes shape, **Health** shows which part stopped matching 
 | Pega | How far | Checked by |
 | --- | --- | --- |
 | 24.2.5 | **Run live** | A real Constellation app (PCore 24.2.5, React 17+) |
-| 25.1 | Typings only | The published PCore and PConnect typings (`@pega/pcore-pconnect-typedefs` 4.1.4) compared with the calls Lens reads |
-| 26.1 | Typings only | The same, against 5.1.1 (the `release-26.1` tag) |
+| 25.1 | **Should work** | The published PCore and PConnect typings (`@pega/pcore-pconnect-typedefs` 4.1.4) compared with the calls Lens reads |
+| 26.1 | **Should work** | The same, against 5.1.1 (the `release-26.1` tag) |
 | Anything else | Not checked | Lens reads PCore and PConnect by what they expose, so it may still work. **Health** shows what attached |
 
-"Typings only" means the calls Lens reads exist with the same names and shapes. It does not mean Lens has been run on a live 25 or 26 app. If you try it there, **Health** and **Copy diagnostics** are the most useful things to send back. **Health** also shows this row for the version it sees.
+"Should work" means the calls Lens reads exist with the same names and shapes in that version's typings, and Lens was run live on 24.2.5. Check it once on yours: open **Health**, and if a line is not green, **Copy diagnostics** is the most useful thing to send back. **Health** also shows this row for the version it sees.
 
 ### What Pega 26.1 changed, and what Lens does about it
 

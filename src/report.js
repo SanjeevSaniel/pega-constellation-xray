@@ -341,8 +341,8 @@
     if (!m) return { level: 'unknown', text: 'Lens could not read the Pega version, so it cannot say how far it has been checked on this app.' };
     const major = Number(m[1]);
     if (major === 24) return { level: 'live', text: 'Run live on Pega 24.2.5. This is the release line it was verified on.' };
-    if (major === 25) return { level: 'typings', text: 'Checked against the Pega 25.1 PCore and PConnect typings. Not yet run live on a 25.x app.' };
-    if (major === 26) return { level: 'typings', text: 'Checked against the Pega 26.1 PCore and PConnect typings: every call Lens reads is still there, and streamed data pages are handled. Not yet run live on a 26.x app.' };
+    if (major === 25) return { level: 'typings', text: 'Should work on Pega 25. Lens was run live on 24.2.5, and the Pega 25.1 PCore and PConnect typings show every call it reads is still there. Check it once: if a line above is not green, use Copy diagnostics.' };
+    if (major === 26) return { level: 'typings', text: 'Should work on Pega 26. Lens was run live on 24.2.5, and the Pega 26.1 PCore and PConnect typings show every call it reads is still there, and streamed data pages are handled. Check it once: if a line above is not green, use Copy diagnostics.' };
     return { level: 'untested', text: `Lens has not been checked on Pega ${m[1]}.${m[2]}. It reads PCore and PConnect by what they expose, so it may still work: use Health to see what attached.` };
   }
 
