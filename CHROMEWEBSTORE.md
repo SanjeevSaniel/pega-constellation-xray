@@ -13,20 +13,37 @@ Everything the Developer Dashboard asks for, written once. Nothing here is submi
 
 ### Description
 
-Lens shows you what a Pega Constellation app is really doing.
+Paste this as plain text. It leads with what Lens does and why to install it, and every feature in it is in the shipped build.
 
-Open DevTools on your Pega app, switch the Lens tab on for that site, reload, and see every PCore call, PConnect call, store change and network request: what was called, with which arguments, what came back and its exact structure.
+```
+Stop guessing what your Pega Constellation app is doing. Lens shows you.
 
-- Network, like the browser's own panel: Headers, Payload, Preview, Response (coloured, numbered, with Find), Initiator and Timing. Bodies are kept in full.
-- Data pages: every call that loads data, with its parameters, rows, columns and the HTTP request it made.
-- Views: the mounted components as a tree, with views inside views, and a picker to choose a component by clicking it on the page.
-- Issues: failed calls, page errors, console errors and warnings, slow requests and loops, each copyable as Markdown or JSON.
-- Component details: config props, state props, case info and metadata, and the structure of each.
-- Hide values: show structure only, so a screenshot or a report can be shared safely.
+Open DevTools on your app, choose the Lens tab, and see every PCore call, PConnect call, store change and network request: what was called, with which arguments, what came back, and the exact structure of the data. No more hunting through the Network tab to find out whether an API was called at all.
 
-Everything stays in your browser. There is no server, no analytics and no tracking. The tool does nothing on a site until you switch it on for that site.
+WHY INSTALL IT
+• Answer "was it called?" in seconds. Search every call by name or URL and see exactly what went in and what came out.
+• See the real shape of your data. Every response is shown as a readable tree, with the types of each field, so you can build against what Pega actually returns, not what you assume it returns.
+• Find problems faster. Failed calls, page errors, console errors and warnings, slow or stalled requests and loops are collected in one place, each copyable as Markdown or JSON, ready to paste into a ticket or a message to a teammate.
+• Share safely. Turn on "Hide values" to show structure only, so a screenshot or a report never leaks real data.
+
+WHAT YOU GET
+• Network: like the browser's own panel, with Headers, Payload, Preview, Response (coloured and numbered, with Find), Initiator and Timing. Bodies are kept in full.
+• Data pages: every call that loads data, with its parameters, rows, columns and the HTTP request it made.
+• Views: the mounted components as a tree, with views inside views, and a picker to choose a component by clicking it on the page.
+• Component details: config props, state props, case info and metadata, and the structure of each.
+• Activity: every PCore call, PConnect call, store change and event, in order, each with a plain-English summary.
+• Health: shows what Lens attached to, so you know what it can and cannot see on your page.
+
+YOUR DATA STAYS WITH YOU
+Lens does nothing on a site until you switch it on for that site, and Chrome asks your permission for that one site only. Everything it records stays in your browser and is shown in the DevTools panel of the same tab. There is no server, no analytics, no tracking and no remote code. Sensitive headers such as authorization and cookies are hidden by default and left out of copied reports.
+
+GOOD TO KNOW
+Lens is built for Pega Constellation apps (React-based). It has been tested live on PCore 24.2.5; use the Health tab to see what attached on your version.
 
 Independent project. Not affiliated with or endorsed by Pegasystems.
+
+Privacy policy: https://www.sanjeevkujur.dev/lens/privacy
+```
 
 ## Single purpose
 
