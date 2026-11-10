@@ -228,3 +228,21 @@ pre.raw.nowrap { white-space: pre; word-break: normal; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--bg2); font-size: 12px; }
 .crumbs .sep { color: var(--muted); }
 .crumbs .here { font-weight: 700; color: var(--accent); }
+
+/* the formatted response: numbered lines, colour by token */
+.meta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.kind-chip { font: 700 10.5px var(--mono); text-transform: uppercase; letter-spacing: .05em; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; }
+.kind-json { color: var(--ok); } .kind-xml { color: var(--k-pconn); } .kind-form { color: var(--warn); } .kind-text { color: var(--muted); }
+.tools input.find { min-width: 150px; flex: 0 1 200px; }
+.find-n { align-self: center; font-size: 11px; }
+.codeview { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg2); max-height: 62vh; overflow: auto; font: 11.5px/1.65 var(--mono); padding: 6px 0; }
+.codeview .cl { display: flex; padding-right: 12px; }
+.codeview .cl:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.codeview .ln { flex: none; width: var(--lnw, 3.4ch); box-sizing: content-box; padding: 0 10px 0 8px; margin-right: 10px; text-align: right; color: var(--muted); opacity: .75; user-select: none; border-right: 1px solid var(--line); position: sticky; left: 0; background: var(--bg2); }
+.codeview .lc { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+.codeview.nowrap .lc { white-space: pre; word-break: normal; }
+.codeview .cl.hit { background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.codeview .cl.cur { background: color-mix(in srgb, var(--warn) 32%, transparent); box-shadow: inset 3px 0 0 var(--warn); }
+.tk-key { color: var(--k-pcore); font-weight: 600; } .tk-str { color: var(--ok); } .tk-num { color: var(--info); } .tk-bool { color: var(--warn); font-weight: 600; }
+.tk-null { color: var(--muted); font-style: italic; } .tk-punc { color: var(--muted); }
+.tk-tag { color: var(--k-pcore); font-weight: 600; } .tk-attr { color: var(--warn); } .tk-cmt { color: var(--muted); font-style: italic; }

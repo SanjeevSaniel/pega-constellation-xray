@@ -48,7 +48,7 @@
     mask: false, paused: false, origin: '', enabled: false, bridges: 0,
     statusByFrame: new Map(), frames: new Map(), expects: [], lastInspect: null, enabledAt: 0,
     listScope: '', lastShown: 0, issueLevel: 'all', issueQ: '', openIssues: new Set(),
-    bodies: new Map(), bodyChars: 0, reveal: false, pretty: true, wrap: true, showAll: new Set(),
+    bodies: new Map(), bodyChars: 0, reveal: false, pretty: true, wrap: true, showAll: new Set(), find: '',
   };
 
   // ------------------------------------------------------------------ the mark plays one pulse when something is recorded
@@ -359,6 +359,9 @@
 
   /** Selecting only marks the row and fills the detail. It never rebuilds or scrolls the list. */
   function select(key) {
+    // A request opens on its Preview (the readable tree), like the browser's Network panel. Moving between requests keeps the tab you chose.
+    const next = S.byKey.get(key);
+    if (next && next.kind === 'net' && S.byKey.get(S.selected)?.kind !== 'net') S.sub = 'preview';
     S.selected = key;
     document.querySelectorAll('#rows .row').forEach((r) => r.setAttribute('aria-selected', String(r.dataset.key === key)));
     detailSig = '';
@@ -454,24 +457,122 @@
     }
   }
 
-  /** A raw body, in full: copy, download, pretty or raw, wrapped or not. Long text is shown in a first slice, with a button for the rest. */
-  function rawViewer(key, text, truncated, fileName) {
-    const looksJson = /^\s*[[{]/.test(text);
-    const pretty = S.pretty && looksJson && text.length <= 8000000 ? jsonPretty(text) : null;
+  // ---- syntax colouring: JSON, XML and HTML, and form-encoded text. One line at a time, so a long document stays cheap to build.
+  const span = (cls, text) => h('span', { class: cls }, text);
+  const JSON_TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b)|(\bnull\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}[\],:])/g;
+  const XML_TOKEN = /(<!--.*?-->)|(<\/?)([\w:.-]+)|([\w:.-]+)(=)("[^"]*"|'[^']*')|(\/?>)/g;
+  function colorJsonLine(line) {
+    const out = [];
+    let last = 0;
+    let m;
+    JSON_TOKEN.lastIndex = 0;
+    while ((m = JSON_TOKEN.exec(line))) {
+      if (m.index > last) out.push(line.slice(last, m.index));
+      if (m[1] !== undefined) { if (m[2]) out.push(span('tk-key', m[1]), span('tk-punc', m[2])); else out.push(span('tk-str', m[1])); }
+      else if (m[3]) out.push(span('tk-bool', m[3]));
+      else if (m[4]) out.push(span('tk-null', m[4]));
+      else if (m[5]) out.push(span('tk-num', m[5]));
+      else out.push(span('tk-punc', m[6]));
+      last = JSON_TOKEN.lastIndex;
+    }
+    if (last < line.length) out.push(line.slice(last));
+    return out;
+  }
+  function colorXmlLine(line) {
+    const out = [];
+    let last = 0;
+    let m;
+    XML_TOKEN.lastIndex = 0;
+    while ((m = XML_TOKEN.exec(line))) {
+      if (m.index > last) out.push(line.slice(last, m.index));
+      if (m[1]) out.push(span('tk-cmt', m[1]));
+      else if (m[3]) out.push(span('tk-punc', m[2]), span('tk-tag', m[3]));
+      else if (m[4]) out.push(span('tk-attr', m[4]), span('tk-punc', m[5]), span('tk-str', m[6]));
+      else out.push(span('tk-punc', m[7]));
+      last = XML_TOKEN.lastIndex;
+    }
+    if (last < line.length) out.push(line.slice(last));
+    return out;
+  }
+  function colorFormLine(line) {
+    return line.split('&').flatMap((pair, i) => {
+      const eq = pair.indexOf('=');
+      const parts = eq < 0 ? [span('tk-key', pair)] : [span('tk-key', pair.slice(0, eq)), span('tk-punc', '='), span('tk-str', pair.slice(eq + 1))];
+      return i ? [span('tk-punc', '&'), ...parts] : parts;
+    });
+  }
+  /** What a body looks like, from its content type and its first characters. */
+  function bodyKind(text, ct) {
+    const t = String(ct || '').toLowerCase();
+    if (/json/.test(t) || /^\s*[[{]/.test(text)) return 'json';
+    if (/xml|html/.test(t) || /^\s*</.test(text)) return 'xml';
+    if (/x-www-form-urlencoded/.test(t) || /^[\w%.+-]+=[^\s]*(&[\w%.+-]+=[^\s]*)*$/.test(text.trim())) return 'form';
+    return 'text';
+  }
+  const KIND_LABEL = { json: 'JSON', xml: 'XML / HTML', form: 'Form data', text: 'Text' };
+
+  /** The formatted view: line numbers, colour by token kind, and wrapping that keeps each line's number in place. */
+  function codeView(text, kind) {
+    const lines = text.split('\n');
+    const color = kind === 'json' ? colorJsonLine : kind === 'xml' ? colorXmlLine : kind === 'form' ? colorFormLine : (l) => [l];
+    const root = h('div', { class: `codeview${S.wrap ? '' : ' nowrap'}`, role: 'region', 'aria-label': 'Formatted response text' });
+    root.style.setProperty('--lnw', `${String(lines.length).length + 1.6}ch`);
+    const frag = document.createDocumentFragment();
+    lines.forEach((ln, i) => {
+      frag.append(h('div', { class: 'cl', 'data-i': String(i) }, h('span', { class: 'ln', 'aria-hidden': 'true' }, String(i + 1)), h('span', { class: 'lc' }, ...(ln ? color(ln) : ['\u200b']))));
+    });
+    root.append(frag);
+    return { root, lines };
+  }
+
+  /** A raw body, in full: coloured and numbered, with Find, copy, download, pretty or raw, and wrap. A first slice is drawn; a button shows the rest. */
+  function rawViewer(key, text, truncated, fileName, contentType) {
+    const kind = bodyKind(text, contentType);
+    const pretty = S.pretty && kind === 'json' && text.length <= 8000000 ? jsonPretty(text) : null;
     const shown = pretty ?? text;
     const LIMIT = 300000;
     const all = S.showAll.has(key);
     const slice = all || shown.length <= LIMIT ? shown : shown.slice(0, LIMIT);
     const toggle = (label, on, fn) => h('button', { type: 'button', 'aria-pressed': String(on), class: on ? 'on' : '', onclick: () => { fn(); detailSig = ''; renderDetail(); } }, label);
+    const { root: view, lines } = codeView(slice, kind);
+
+    // Find: marks every line that contains the text, and steps through them.
+    const count = h('span', { class: 'muted find-n' }, '');
+    const input = h('input', { type: 'search', class: 'find', placeholder: 'Find in response', 'aria-label': 'Find in response' });
+    input.value = S.find || '';
+    let hits = [];
+    let cur = -1;
+    const rows = () => view.children;
+    const apply = (jump) => {
+      const q = input.value.toLowerCase();
+      S.find = input.value;
+      for (const r of rows()) r.classList.remove('hit', 'cur');
+      hits = q ? lines.reduce((acc, l, i) => (l.toLowerCase().includes(q) ? (acc.push(i), acc) : acc), []) : [];
+      hits.forEach((i) => rows()[i]?.classList.add('hit'));
+      if (!hits.length) { cur = -1; count.textContent = q ? 'no matches' : ''; return; }
+      cur = jump === 'prev' ? (cur <= 0 ? hits.length - 1 : cur - 1) : jump === 'next' ? (cur + 1) % hits.length : Math.max(0, Math.min(cur, hits.length - 1));
+      const row = rows()[hits[cur]];
+      row?.classList.add('cur');
+      count.textContent = `${cur + 1} of ${hits.length} line${hits.length === 1 ? '' : 's'}`;
+      if (jump) row?.scrollIntoView({ block: 'center' });
+    };
+    input.addEventListener('input', () => { cur = -1; apply('next'); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(e.shiftKey ? 'prev' : 'next'); } });
+
     const box = h('div', {});
+    box.append(h('div', { class: 'meta-row' },
+      h('span', { class: `kind-chip kind-${kind}` }, KIND_LABEL[kind]),
+      h('span', { class: 'muted' }, `${fmtBytes(text.length)} · ${lines.length.toLocaleString()} line${lines.length === 1 ? '' : 's'}${pretty ? ' (formatted)' : ''}`)));
     box.append(h('div', { class: 'tools' },
       copyBtn(`Copy full text (${fmtBytes(text.length)})`, () => text),
       h('button', { type: 'button', onclick: () => download(fileName, text, 'text/plain') }, 'Download'),
-      looksJson ? toggle('Pretty', !!pretty, () => { S.pretty = !S.pretty; }) : null,
-      toggle('Wrap', S.wrap, () => { S.wrap = !S.wrap; })));
-    box.append(h('pre', { class: `code raw${S.wrap ? '' : ' nowrap'}` }, slice));
+      kind === 'json' ? toggle('Formatted', !!pretty, () => { S.pretty = !S.pretty; }) : null,
+      toggle('Wrap', S.wrap, () => { S.wrap = !S.wrap; }),
+      input, h('button', { type: 'button', title: 'Previous match', onclick: () => apply('prev') }, '↑'), h('button', { type: 'button', title: 'Next match', onclick: () => apply('next') }, '↓'), count));
+    box.append(view);
     if (slice.length < shown.length) box.append(h('p', { class: 'note' }, `Showing the first ${fmtBytes(slice.length)} of ${fmtBytes(shown.length)}. `), h('button', { type: 'button', onclick: () => { S.showAll.add(key); detailSig = ''; renderDetail(); } }, 'Show all'));
     if (truncated) box.append(h('p', { class: 'note' }, 'The recorded text was cut at 30 million characters.'));
+    if (S.find) apply();
     return box;
   }
 
@@ -509,16 +610,57 @@
     body.append(h('h4', {}, 'Request payload'));
     if (raw && raw.done) {
       if (S.mask) body.append(h('p', { class: 'muted' }, 'The raw text is hidden while Hide values is on. The structure is below.'), tree(n.reqBody));
-      else body.append(rawViewer(`${ev.key}:req`, raw.text, raw.truncated, `request-${ev.id}.txt`), h('h4', {}, 'Parsed'), tree(n.reqBody, 2));
+      else body.append(rawViewer(`${ev.key}:req`, raw.text, raw.truncated, `request-${ev.id}.txt`, ev.net.reqHeaders && ev.net.reqHeaders['content-type']), h('h4', {}, 'Parsed'), tree(n.reqBody, 2));
     } else if (n.reqBody !== undefined) body.append(tree(n.reqBody, 2));
     else body.append(h('p', { class: 'muted' }, 'This request has no body.'));
+  }
+
+  // The Preview tree draws the whole parsed response, but only builds a row when it is opened and 100 at a time,
+  // so a response with thousands of rows stays quick.
+  const CHUNK_ROWS = 100;
+  function lazyNode(key, v, depth) {
+    const label = key === undefined ? [] : [h('span', { class: 'k' }, `${key}`), ': '];
+    if (!(v && typeof v === 'object')) return h('li', {}, ...label, leaf(v));
+    const entries = Array.isArray(v) ? v.map((x, i) => [i, x]) : Object.entries(v);
+    const peek = Array.isArray(v) ? '' : entries.slice(0, 4).map(([k]) => k).join(', ') + (entries.length > 4 ? ', …' : '');
+    const ul = h('ul', {});
+    const more = h('li', {});
+    let shown = 0;
+    const draw = () => {
+      more.remove();
+      for (const [k, x] of entries.slice(shown, shown + CHUNK_ROWS)) ul.append(lazyNode(k, x, depth + 1));
+      shown = Math.min(entries.length, shown + CHUNK_ROWS);
+      if (shown < entries.length) {
+        clear(more).append(h('button', { type: 'button', onclick: draw }, `Show ${Math.min(CHUNK_ROWS, entries.length - shown)} more (${(entries.length - shown).toLocaleString()} left)`));
+        ul.append(more);
+      }
+    };
+    const d = h('details', { open: depth < 1 }, h('summary', {}, ...label, h('span', { class: 'muted' }, Array.isArray(v) ? `[${entries.length.toLocaleString()}]` : `{${entries.length.toLocaleString()}}`), peek ? h('span', { class: 'pv' }, ` ${peek}`) : null), ul);
+    d.addEventListener('toggle', () => { if (d.open && !shown) draw(); });
+    if (d.open) draw();
+    return h('li', {}, d);
   }
 
   function netPreview(body, ev) {
     if (ev.status === 'pending') { body.append(h('div', { class: 'hint warn' }, 'Still waiting for the response.')); return; }
     if (ev.error) body.append(h('div', { class: 'hint bad' }, 'It failed:'), tree(ev.error));
+    const raw = bodyOf(ev, 'res');
+    let parsed;
+    if (raw && raw.done && raw.text.length <= 8000000 && bodyKind(raw.text, ev.contentType) === 'json') { try { parsed = JSON.parse(raw.text); } catch { /* not valid JSON: fall back below */ } }
+    if (parsed !== undefined) {
+      const n = parsed && typeof parsed === 'object' ? (Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length) : 0;
+      const root = h('ul', { class: 'tree' }, lazyNode(undefined, parsed, 0));
+      body.append(
+        h('p', { class: 'say' }, Array.isArray(parsed) ? `A list of ${n.toLocaleString()} items.` : parsed && typeof parsed === 'object' ? `An object with ${n.toLocaleString()} keys.` : 'A single value.'),
+        h('div', { class: 'tools' },
+          h('button', { type: 'button', onclick: () => root.querySelectorAll('details').forEach((d) => { d.open = true; }) }, 'Open one more level'),
+          h('button', { type: 'button', onclick: () => root.querySelectorAll('details').forEach((d, i) => { d.open = i === 0; }) }, 'Collapse all')),
+        root,
+        h('p', { class: 'note' }, 'All of it is here: rows are drawn as you open them, 100 at a time. The Response tab has the exact text, coloured, with Find.'));
+      return;
+    }
     if (typeof ev.result === 'string' && ev.result.startsWith('[')) body.append(h('p', { class: 'muted' }, ev.result));
-    else body.append(tree(ev.result, 2), h('p', { class: 'note' }, 'Long lists and long text are shortened here. The Response tab has everything.'));
+    else body.append(tree(ev.result, 2), h('p', { class: 'note' }, 'This is the shortened copy (long lists and long text are cut). The full response was not available to draw as a tree.'));
   }
 
   function netResponse(body, ev) {
@@ -526,7 +668,7 @@
     if (ev.error) body.append(h('div', { class: 'hint bad' }, 'It failed:'), tree(ev.error));
     const raw = bodyOf(ev, 'res');
     if (S.mask) { body.append(h('p', { class: 'muted' }, 'The raw text is hidden while Hide values is on. The structure is shown instead.'), tree(ev.result)); return; }
-    if (raw && raw.done) body.append(rawViewer(`${ev.key}:res`, raw.text, raw.truncated, `response-${ev.id}.txt`));
+    if (raw && raw.done) body.append(rawViewer(`${ev.key}:res`, raw.text, raw.truncated, `response-${ev.id}.txt`, ev.contentType));
     else if (raw) body.append(h('p', { class: 'muted' }, `Receiving the text… ${raw.got} of ${raw.of} parts.`));
     else if (typeof ev.result === 'string' && ev.result.startsWith('[')) body.append(h('p', { class: 'muted' }, ev.result));
     else body.append(h('p', { class: 'muted' }, 'The response text is not available: it was recorded before the panel opened, was dropped to save memory, or is not text. Reload with Lens open to capture it.'), tree(ev.result, 2));
@@ -619,7 +761,7 @@
       if (ev.kind === 'pcore' || ev.kind === 'pconn') tabs.push(['network', `HTTP${kids ? ` (${R.networkOf(ev, S.events).length})` : ''}`]);
       tabs.push(['caller', 'Who called it'], ['raw', 'Raw']);
     }
-    if (!tabs.some(([id]) => id === S.sub)) S.sub = 'summary';
+    if (!tabs.some(([id]) => id === S.sub)) S.sub = ev.kind === 'net' ? 'preview' : 'summary'; // a request opens on its Preview, like the browser's Network panel
     d.append(h('div', { class: 'sub', role: 'tablist' }, ...tabs.map(([id, label]) => h('button', { role: 'tab', 'aria-selected': String(S.sub === id), onclick: () => { S.sub = id; detailSig = ''; renderDetail(); d.scrollTop = 0; } }, label))));
     const body = h('div', { class: 'body' });
     d.append(body);
@@ -963,7 +1105,7 @@
     const r = $('#rows');
     if (r.scrollHeight - r.scrollTop - r.clientHeight < 40) { $('#jump-latest').hidden = true; S.lastShown = r.children.length; }
   });
-  $('#btn-clear').addEventListener('click', () => { S.events = []; S.byKey.clear(); S.selected = null; S.openIssues.clear(); S.bodies.clear(); S.bodyChars = 0; S.showAll.clear(); S.lastShown = 0; detailSig = ''; issuesSig = ''; send({ cmd: 'clear' }); render(); });
+  $('#btn-clear').addEventListener('click', () => { S.events = []; S.byKey.clear(); S.selected = null; S.openIssues.clear(); S.bodies.clear(); S.bodyChars = 0; S.showAll.clear(); S.find = ''; S.lastShown = 0; detailSig = ''; issuesSig = ''; send({ cmd: 'clear' }); render(); });
   $('#btn-pause').addEventListener('click', (e) => { S.paused = !S.paused; send({ cmd: S.paused ? 'pause' : 'resume' }); e.target.textContent = S.paused ? 'Resume' : 'Pause'; });
   $('#btn-reload').addEventListener('click', () => { banner(''); chrome.devtools.inspectedWindow.reload({}); });
   $('#btn-enable').addEventListener('click', async () => {
