@@ -1,10 +1,10 @@
-# Peek
+# Constellation Lens
 
-Peek inside a Pega Constellation app. A Chrome DevTools panel that records what your page does through **PCore**, **PConnect**, the **store** and the **network**: what was called, with which arguments, what came back, the exact structure of that data, how long it took, and who called it.
+See inside a Pega Constellation app. A Chrome DevTools panel that records what your page does through **PCore**, **PConnect**, the **store** and the **network**: what was called, with which arguments, what came back, the exact structure of that data, how long it took, and who called it.
 
 Built for debugging custom DX components: "was this API even called?", "what did it return?", "what shape is the data my component receives?", "why did that fail?".
 
-Peek was called *Pega Constellation X-Ray* in 0.1. The folder and repository keep the old name for now.
+Constellation Lens was called *Pega Constellation X-Ray* in 0.1. The folder and repository keep the old name for now.
 
 ## Install from a release (easiest)
 
@@ -15,10 +15,10 @@ Peek was called *Pega Constellation X-Ray* in 0.1. The folder and repository kee
 
 1. Open `chrome://extensions`, switch on **Developer mode**.
 2. **Load unpacked**, pick this folder.
-3. Open your Pega app, open DevTools (F12), go to the **Peek** tab.
+3. Open your Pega app, open DevTools (F12), go to the **Lens** tab (the one with the magnifier).
 4. Click **Turn on for this site** (Chrome asks for permission for that one host only), then **Reload & capture from start**.
 
-Nothing runs on any site you have not switched on. The toolbar icon opens a short reminder of these steps, and pulses whenever Peek records something in that tab (red when it recorded a failure).
+Nothing runs on any site you have not switched on. The toolbar icon opens a short reminder of these steps, and pulses whenever Lens records something in that tab (red when it recorded a failure).
 
 ## What each tab does
 
@@ -28,9 +28,9 @@ Nothing runs on any site you have not switched on. The toolbar icon opens a shor
 | **Data pages** | Every call that loads data, in one list: the data page or view, its parameters, how many rows came back and how long it took. Open one for its **Input** (name, context, parameters, raw arguments), its **Output** (row count, a columns table that shows which columns are missing in some rows, the rows themselves and the full tree) and the **HTTP** request it made, with request and response. You do not need the browser's Network tab. |
 | **Network** | Every request with headers (secrets hidden), body, response body and structure. Recognises DX API, data view, case, assignment and attachment URLs. |
 | **Issues** | Everything worth a look, newest first: failed calls and requests, uncaught page errors, unhandled promise rejections, `console.error` and `console.warn`, stalled or slow requests, empty data results and loops of identical calls. Filter by Error, Check or Note. Every issue has **Copy issue (Markdown)**, **Copy as JSON** and **Show the call**; the whole list can be copied or downloaded as Markdown, ready for a ticket or a chat. |
-| **Was it called?** | Add a call name or URL (plain text or `/regex/i`). Peek shows ✓ called N times or ✗ not called, and jumps to the last result. Saved per site. |
-| **Component** | Select an element in **Elements**; Peek finds the Constellation component behind it and shows its config props, state props, case info, raw metadata, the structure of its config props, and what it called. |
-| **Health** | Checks that Peek is seeing your app, a pointer to Issues, and **Copy diagnostics**. |
+| **Was it called?** | Add a call name or URL (plain text or `/regex/i`). Lens shows ✓ called N times or ✗ not called, and jumps to the last result. Saved per site. |
+| **Component** | Select an element in **Elements**; Lens finds the Constellation component behind it and shows its config props, state props, case info, raw metadata, the structure of its config props, and what it called. |
+| **Health** | Checks that Lens is seeing your app, a pointer to Issues, and **Copy diagnostics**. |
 
 The list keeps your place: clicking a row never moves it, and new rows only pull the list down when you were already at the bottom (otherwise a "↓ N new" button appears). The mark in the header plays one pulse whenever something is recorded.
 
@@ -48,7 +48,7 @@ If a future runtime changes shape, **Health** shows which part stopped matching 
 
 > Honest limit: this has been tested against a fake runtime (`npm test`) and the panel against stubbed Chrome APIs, not yet against every live Pega version. Treat the first run on each version as a check, and use **Health** to see what attached.
 
-The **Data pages** tab reads the data page name and parameters from the call's arguments by their values (a string that is not a context, an object with a parameters-like key). Peek does not know Pega's exact signatures, so the tab says "read from the argument values" and always shows the raw arguments too.
+The **Data pages** tab reads the data page name and parameters from the call's arguments by their values (a string that is not a context, an object with a parameters-like key). Lens does not know Pega's exact signatures, so the tab says "read from the argument values" and always shows the raw arguments too.
 
 ## What it records, and what it does not
 
@@ -56,7 +56,7 @@ The **Data pages** tab reads the data page name and parameters from the call's a
 - PConnect: methods on each component's `pConn` and on its actions API, labelled with the component name and context.
 - Network: `fetch` and `XMLHttpRequest`. Authorization, cookie, token, CSRF and similar headers and query values are replaced with `[redacted]`. Binary responses are not recorded. Bodies over 300,000 characters are not recorded.
 - Page errors: uncaught errors, unhandled promise rejections, resource load failures, and `console.error` / `console.warn` (up to 300 per page). Your page's own handlers and console methods always run unchanged.
-- Calls made before Peek attached are missed. Reload after turning it on.
+- Calls made before Lens attached are missed. Reload after turning it on.
 - A PConnect that no mounted component holds is not discovered.
 - Inspecting an element works in the top page; for an app inside an iframe, use that frame's DevTools context.
 
@@ -77,7 +77,7 @@ npm test        # drives src/hook.js against a fake runtime, and the panel's log
 | `src/hook.js` | Page-world recorder (PCore/PConnect/network/store/page errors) |
 | `src/bridge.js` | Isolated-world relay between the page and the extension |
 | `src/report.js` | The panel's pure logic: explanations, data-call reader, issue finder, copy-ready reports. Tested in `test/report.mjs` |
-| `src/mark.js` | The mark (an eye with a star for a pupil), drawn on a canvas. Used for the PNG icons and the animated toolbar icon |
+| `src/mark.js` | The mark (a lens with a small constellation inside), drawn on a canvas. Used for the PNG icons and the animated toolbar icon |
 | `background.js` | Registers the hook per switched-on site, relays events to the panel, pulses the toolbar icon |
 | `panel.html/css/js` | The DevTools panel |
 | `popup.html` | The short reminder behind the toolbar icon |

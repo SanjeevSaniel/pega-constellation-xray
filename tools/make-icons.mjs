@@ -1,4 +1,4 @@
-// Draws the Peek mark into the PNG icons Chrome needs (manifest icons cannot be SVG).
+// Draws the Constellation Lens mark into the PNG icons Chrome needs (manifest icons cannot be SVG).
 // Run:  CANVAS_FROM=/path/to/a/project/with/@napi-rs/canvas/package.json node tools/make-icons.mjs
 // The PNGs are committed, so nobody who just installs the extension needs to run this.
 import fs from 'node:fs';

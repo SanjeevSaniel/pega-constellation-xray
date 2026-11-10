@@ -1,4 +1,4 @@
-/* Pega Constellation X-Ray: the panel's pure logic.
+/* Constellation Lens: the panel's pure logic.
  *
  * Plain-English explanations, the data-call reader, the issue finder and the copy-ready reports. No DOM and no chrome.*
  * in here, so the panel and the tests (test/report.mjs) use the same code.
@@ -135,7 +135,7 @@
   const looksLikeContext = (s) => typeof s === 'string' && /^[\w-]+\/[\w-]+/.test(s);
 
   /**
-   * Reads a data call's input. The names are a best guess from the arguments (X-Ray does not know Pega's signatures),
+   * Reads a data call's input. The names are a best guess from the arguments (Lens does not know Pega's signatures),
    * so the panel labels them as such and always shows the raw arguments too.
    */
   function dataInfo(ev) {
@@ -265,9 +265,9 @@
     const bad = list.filter((f) => f.level === 'bad').length;
     const warn = list.filter((f) => f.level === 'warn').length;
     const head = [
-      `# Pega Constellation X-Ray: issues`,
+      `# Constellation Lens: issues`,
       '',
-      `- Tool: ${meta.tool || 'Pega Constellation X-Ray'}${meta.version ? ` ${meta.version}` : ''}`,
+      `- Tool: ${meta.tool || 'Constellation Lens'}${meta.version ? ` ${meta.version}` : ''}`,
       meta.origin ? `- Page: ${meta.origin}` : '',
       meta.runtime ? `- Pega runtime: ${meta.runtime}` : '',
       `- Copied: ${new Date(meta.now || Date.now()).toISOString()}`,
@@ -281,7 +281,7 @@
   function issuesJson(list, meta = {}, opts = {}) {
     const view = opts.view || ((v) => v);
     return {
-      tool: meta.tool || 'Pega Constellation X-Ray',
+      tool: meta.tool || 'Constellation Lens',
       version: meta.version,
       origin: meta.origin,
       runtime: meta.runtime,

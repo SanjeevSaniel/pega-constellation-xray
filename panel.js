@@ -1,4 +1,4 @@
-/* Peek: DevTools panel.
+/* Constellation Lens: DevTools panel.
  * All page data is rendered with textContent / DOM nodes, never innerHTML, so nothing a page returns can run here.
  * The plain-English text, the data-call reader, the issue finder and the copy-ready reports live in src/report.js. */
 (() => {
@@ -25,15 +25,19 @@
   }
   const clear = (el) => { el.textContent = ''; return el; };
 
-  /** The mark as an SVG element (built with createElementNS, never innerHTML). Same geometry as panel.html and src/mark.js. */
+  /** The mark as an SVG element (built with createElementNS, never innerHTML). Same geometry as panel.html and src/mark.js, flat colour. */
   function markIcon(size) {
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('width', size); svg.setAttribute('height', size); svg.setAttribute('class', 'mark'); svg.setAttribute('aria-hidden', 'true');
     const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); svg.append(e); };
-    mk('path', { class: 'eye', d: 'M3 16C8 7.5 24 7.5 29 16C24 24.5 8 24.5 3 16Z', fill: 'none', 'stroke-width': 2.4, 'stroke-linejoin': 'round' });
-    mk('circle', { class: 'iris', cx: 16, cy: 16, r: 5.6, fill: 'none', 'stroke-width': 1.8 });
-    mk('path', { class: 'star', d: 'M16 11.4L17.06 14.94L20.6 16L17.06 17.06L16 20.6L14.94 17.06L11.4 16L14.94 14.94Z' });
+    mk('rect', { width: 32, height: 32, rx: 7.5, fill: 'var(--accent)' });
+    mk('circle', { cx: 14.5, cy: 14.5, r: 8.6, fill: 'none', stroke: '#fff', 'stroke-width': 2.8 });
+    mk('path', { d: 'M21 21L26.5 26.5', stroke: '#fff', 'stroke-width': 2.8, 'stroke-linecap': 'round' });
+    mk('path', { d: 'M10.3 17L14.2 11.6L19.2 15.4', fill: 'none', stroke: '#fff', 'stroke-opacity': 0.88, 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    mk('circle', { cx: 10.3, cy: 17, r: 1.7, fill: '#fff' });
+    mk('circle', { cx: 19.2, cy: 15.4, r: 1.7, fill: '#fff' });
+    mk('path', { class: 'star', d: 'M14.2 8.4L14.98 10.82L17.4 11.6L14.98 12.38L14.2 14.8L13.42 12.38L11 11.6L13.42 10.82Z' });
     return svg;
   }
 
@@ -237,14 +241,14 @@
     const chip = (text, cls, title) => h('span', { class: `chip ${cls}`, title }, text);
     const box = clear($('#chips'));
     box.append(
-      chip(S.enabled ? 'Peek on' : 'Peek off', S.enabled ? 'ok' : 'bad', S.enabled ? 'Recording this site' : 'Turn Peek on for this site to start recording'),
+      chip(S.enabled ? 'Lens on' : 'Lens off', S.enabled ? 'ok' : 'bad', S.enabled ? 'Recording this site' : 'Turn Lens on for this site to start recording'),
       chip(st.pcore ? `PCore found${st.version ? ` · ${st.version}` : ''}` : 'PCore not found yet', st.pcore ? 'ok' : 'wait', 'Pega Constellation core runtime'),
       chip(st.store ? 'Store watched' : 'Store waiting', st.store ? 'ok' : 'wait', 'State changes and dispatched actions'),
       chip(st.react ? `Components found${st.reactMode ? ` · ${st.reactMode}` : ''}` : 'No components yet', st.react ? 'ok' : 'wait', 'PConnect handles discovered in the page'),
     );
     $('#btn-enable').hidden = S.enabled || !/^https?:/.test(S.origin);
     $('#btn-reload').hidden = !S.enabled;
-    if (!/^https?:/.test(S.origin) && S.origin) banner('Peek works on http and https pages. Open your Pega app and reopen DevTools.', true);
+    if (!/^https?:/.test(S.origin) && S.origin) banner('Lens works on http and https pages. Open your Pega app and reopen DevTools.', true);
   }
   function banner(text, warn) {
     const b = $('#banner');
@@ -321,7 +325,7 @@
   function renderEmpty(el, scope) {
     clear(el);
     const logo = markIcon(44);
-    if (!S.enabled) el.append(logo, h('strong', {}, 'Peek is off for this site'), 'Click “Turn on for this site”, then reload the page to capture everything from the first call.');
+    if (!S.enabled) el.append(logo, h('strong', {}, 'Lens is off for this site'), 'Click “Turn on for this site”, then reload the page to capture everything from the first call.');
     else if (!S.events.length) el.append(logo, h('strong', {}, 'Nothing recorded yet'), 'Use the app: open a case, change a field, load a list. Each PCore call, PConnect call and API request shows up here as it happens.');
     else if (scope === 'data' && !S.q && !S.onlyProblems) el.append(logo, h('strong', {}, 'No data page calls yet'), 'Open a screen that loads a list, a table or a dropdown. Every call that loads data appears here with its input, its rows and the HTTP request it made.');
     else el.append(logo, h('strong', {}, 'Nothing matches your filters'), scope === 'network' ? 'Try turning off “Pega calls only”.' : 'Try turning off “Hide quick reads” or clearing the search box.');
@@ -368,13 +372,13 @@
     body.append(h('h4', {}, 'Parameters'), info.parameters === undefined ? h('p', { class: 'muted' }, 'No parameters found in the arguments.') : tree(info.parameters));
     if (info.other.length) body.append(h('h4', {}, 'Other arguments'), ...info.other.map((o) => h('div', {}, h('span', { class: 'muted' }, `Argument ${o.position}: `), tree(o.value, 1))));
     body.append(h('h4', {}, ev.kind === 'net' ? 'Request body (raw)' : 'All arguments (raw)'), tree(ev.kind === 'net' ? ev.net.reqBody : ev.args));
-    if (info.guessed) body.append(h('p', { class: 'note' }, 'The names above are read from the argument values. Peek does not know Pega’s exact signatures, so check the raw arguments if something looks off.'));
+    if (info.guessed) body.append(h('p', { class: 'note' }, 'The names above are read from the argument values. Lens does not know Pega’s exact signatures, so check the raw arguments if something looks off.'));
   }
   function dataOutput(body, ev) {
     const n = R.rowCount(ev);
     const rows = R.rowsOf(ev.result);
     const cols = R.columnsOf(ev);
-    if (n !== undefined) body.append(h('p', { class: 'say' }, n === 0 ? 'No rows came back.' : `${plural(n, 'row')} came back${rows && rows.length < n ? ` (Peek keeps the first ${rows.length})` : ''}.`));
+    if (n !== undefined) body.append(h('p', { class: 'say' }, n === 0 ? 'No rows came back.' : `${plural(n, 'row')} came back${rows && rows.length < n ? ` (Lens keeps the first ${rows.length})` : ''}.`));
     if (cols.length) {
       body.append(h('h4', {}, `Columns (${cols.length})`),
         h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'Column'), h('th', {}, 'Type'), h('th', {}, 'In every row?'))),
@@ -385,7 +389,7 @@
   function networkSub(body, ev) {
     const nets = R.networkOf(ev, S.events);
     if (!nets.length) {
-      body.append(h('p', { class: 'muted' }, ev.status === 'pending' ? 'No request seen yet.' : 'This call did not start any HTTP request that Peek recorded. Possible reasons: the data came from a cache, the request started before Peek attached, or it is made somewhere else.'));
+      body.append(h('p', { class: 'muted' }, ev.status === 'pending' ? 'No request seen yet.' : 'This call did not start any HTTP request that Lens recorded. Possible reasons: the data came from a cache, the request started before Lens attached, or it is made somewhere else.'));
       return;
     }
     body.append(h('p', { class: 'say' }, `It made ${plural(nets.length, 'HTTP request')}. Open one for its request and response, so you do not need the browser’s Network tab.`));
@@ -472,7 +476,7 @@
 
   // ------------------------------------------------------------------ issues
   const LEVEL_WORD = { bad: 'Error', warn: 'Check', info: 'Note' };
-  const issueMeta = () => ({ tool: 'Peek', version: VERSION, origin: S.origin, runtime: mergedStatus().version, valuesHidden: S.mask });
+  const issueMeta = () => ({ tool: 'Constellation Lens', version: VERSION, origin: S.origin, runtime: mergedStatus().version, valuesHidden: S.mask });
   function issueCard(f) {
     const ev = f.ev;
     const inner = h('div', { class: 'inner' });
@@ -537,7 +541,7 @@
       ' ',
       copyBtn('Copy as JSON', () => JSON.stringify(R.issuesJson(list, issueMeta(), { view, events: S.events }), null, 2)),
       ' ',
-      h('button', { type: 'button', onclick: () => download(`peek-issues-${Date.now()}.md`, R.issuesMarkdown(list, issueMeta(), { view, events: S.events }), 'text/markdown') }, 'Download .md'));
+      h('button', { type: 'button', onclick: () => download(`lens-issues-${Date.now()}.md`, R.issuesMarkdown(list, issueMeta(), { view, events: S.events }), 'text/markdown') }, 'Download .md'));
     main.scrollTop = prevTop;
   }
 
@@ -565,7 +569,7 @@
     const called = stats.filter((s) => s.hits.length).length;
     $('#n-expect').textContent = stats.length ? `✓${called} ✗${stats.length - called}` : '';
   }
-  const expectKey = () => `peek:expect:${new URL(S.origin || 'http://x').hostname}`;
+  const expectKey = () => `lens:expect:${new URL(S.origin || 'http://x').hostname}`;
   const saveExpects = () => { try { chrome.storage.local.set({ [expectKey()]: S.expects }); } catch { /* ignore */ } };
   async function loadExpects() { try { const r = await chrome.storage.local.get(expectKey()); S.expects = r[expectKey()] || []; } catch { S.expects = []; } }
 
@@ -573,7 +577,7 @@
   const pageEval = (expr) => new Promise((res) => chrome.devtools.inspectedWindow.eval(expr, (r, e) => res({ r, e })));
   async function inspect() {
     const out = clear($('#component-out'));
-    const { r, e } = await pageEval('window.__pegaXray ? window.__pegaXray.inspectElement($0) : { found: false, reason: "Peek is not attached to this page. Turn it on for this site and reload." }');
+    const { r, e } = await pageEval('window.__pegaXray ? window.__pegaXray.inspectElement($0) : { found: false, reason: "Lens is not attached to this page. Turn it on for this site and reload." }');
     if (e && (e.isError || e.isException)) { out.append(h('div', { class: 'card' }, h('div', { class: 'hint bad' }, 'Could not inspect: ', String(e.value || e.description || e.code)))); return; }
     if (!r || !r.found) { out.append(h('div', { class: 'card' }, h('div', { class: 'hint warn' }, r?.reason || 'Nothing found.'), h('p', { class: 'muted' }, 'Tip: select an element inside the component (not the page background), then try again.'))); return; }
     S.lastInspect = r;
@@ -594,7 +598,7 @@
   async function listComponents() {
     const out = clear($('#component-out'));
     const { r } = await pageEval('window.__pegaXray ? window.__pegaXray.listComponents() : null');
-    if (!r) { out.append(h('div', { class: 'card' }, h('div', { class: 'hint warn' }, 'Peek is not attached to this page. Turn it on for this site and reload.'))); return; }
+    if (!r) { out.append(h('div', { class: 'card' }, h('div', { class: 'hint warn' }, 'Lens is not attached to this page. Turn it on for this site and reload.'))); return; }
     out.append(h('div', { class: 'card' }, h('h2', {}, `${plural(r.length, 'component')} on the page`),
       h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Component'), h('th', {}, 'Context'), h('th', {}, 'Element'))), h('tbody', {}, ...r.map((c) => h('tr', {}, h('td', {}, c.component), h('td', { class: 'mono' }, c.context), h('td', { class: 'mono' }, `<${c.tag}>${c.classes ? ` .${c.classes.split(' ')[0]}` : ''}`)))))));
   }
@@ -607,12 +611,12 @@
     const f = R.findings(S.events);
     const bad = f.filter((x) => x.level === 'bad').length;
     out.append(
-      h('div', { class: 'card' }, h('h2', {}, 'Is Peek seeing your app?'),
+      h('div', { class: 'card' }, h('h2', {}, 'Is Lens seeing your app?'),
         h('p', { class: 'muted' }, 'Checks look for capabilities, not version numbers, so they apply to Pega 23, 24, 25, 26 and later. If a line is not green, that part of your runtime looks different and the line says what to try.'),
         h('table', {}, h('tbody', {},
           row('Switched on for this site', S.enabled, S.enabled ? S.origin : 'Click “Turn on for this site”.'),
-          row('Hook attached to the page', S.bridges > 0 || S.statusByFrame.size > 0, S.statusByFrame.size ? `${plural(S.statusByFrame.size, 'frame')} reporting` : 'Reload the page after turning Peek on.'),
-          row('PCore found', st.pcore ? true : S.enabled ? null : false, st.pcore ? `${st.pcoreMethods ?? '?'} methods` : 'Not on this page yet. Constellation apps load PCore a moment after the page; if the app is inside an iframe on another host, turn Peek on for that host too.'),
+          row('Hook attached to the page', S.bridges > 0 || S.statusByFrame.size > 0, S.statusByFrame.size ? `${plural(S.statusByFrame.size, 'frame')} reporting` : 'Reload the page after turning Lens on.'),
+          row('PCore found', st.pcore ? true : S.enabled ? null : false, st.pcore ? `${st.pcoreMethods ?? '?'} methods` : 'Not on this page yet. Constellation apps load PCore a moment after the page; if the app is inside an iframe on another host, turn Lens on for that host too.'),
           row('Pega runtime version', st.version ? !/unknown/.test(st.version) : null, st.version || 'Waiting for PCore.'),
           row('Store watched (state changes)', st.store ? true : st.pcore ? null : false, st.store ? 'State changes and dispatched actions are recorded.' : 'Waiting for PCore.getStore(). If it never turns green, your build may not expose the store; PCore and network recording still work.'),
           row('Components discovered', st.react ? true : null, st.react ? `${st.reactMode || 'React'} · PConnect calls from components are recorded.` : 'No Constellation components rendered yet, or they are inside a closed shadow root.'),
@@ -622,7 +626,7 @@
         h('p', { class: 'muted' }, f.length ? `${plural(bad, 'error')} among them. Each one can be copied as a bug report.` : 'No failed calls, page errors, stalled requests or loops.'),
         h('button', { class: 'primary', type: 'button', onclick: () => switchTab('issues') }, 'Open Issues')),
       h('div', { class: 'card' }, h('h2', {}, 'Share a diagnosis'), h('p', { class: 'muted' }, 'Copies the checks above (no event data) so you can report a compatibility problem.'),
-        copyBtn('Copy diagnostics', () => JSON.stringify({ tool: `Peek ${VERSION}`, userAgent: navigator.userAgent, status: st, frames: S.statusByFrame.size, events: S.events.length }, null, 2))),
+        copyBtn('Copy diagnostics', () => JSON.stringify({ tool: `Constellation Lens ${VERSION}`, userAgent: navigator.userAgent, status: st, frames: S.statusByFrame.size, events: S.events.length }, null, 2))),
     );
   }
 
@@ -695,17 +699,17 @@
   $('#btn-enable').addEventListener('click', async () => {
     const u = new URL(S.origin);
     const granted = await chrome.permissions.request({ origins: [`${u.protocol}//${u.hostname}/*`] });
-    if (!granted) { banner('Permission was not granted, so Peek cannot run on this site.', true); return; }
+    if (!granted) { banner('Permission was not granted, so Lens cannot run on this site.', true); return; }
     const res = await chrome.runtime.sendMessage({ type: 'enable', origin: S.origin, tabId });
-    if (!res?.ok) { banner(`Could not turn Peek on: ${res?.error || 'unknown error'}`, true); return; }
+    if (!res?.ok) { banner(`Could not turn Lens on: ${res?.error || 'unknown error'}`, true); return; }
     S.enabled = true; S.enabledAt = Date.now();
-    banner('Peek is on. It sees new activity now; reload to capture everything from the very first call.');
+    banner('Lens is on. It sees new activity now; reload to capture everything from the very first call.');
     render();
-    setTimeout(() => { if (!mergedStatus().pcore && S.enabled) banner('Peek is on, but no PCore was found yet. If this is a Constellation app, reload it. If the app runs inside an iframe on another host, turn Peek on for that host too.', true); }, 8000);
+    setTimeout(() => { if (!mergedStatus().pcore && S.enabled) banner('Lens is on, but no PCore was found yet. If this is a Constellation app, reload it. If the app runs inside an iframe on another host, turn Lens on for that host too.', true); }, 8000);
   });
   $('#btn-export').addEventListener('click', () => {
-    const data = { tool: 'Peek', version: VERSION, exportedAt: new Date().toISOString(), origin: S.origin, valuesHidden: S.mask, status: mergedStatus(), events: S.events.map((e) => view({ ...e })) };
-    download(`peek-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
+    const data = { tool: 'Constellation Lens', version: VERSION, exportedAt: new Date().toISOString(), origin: S.origin, valuesHidden: S.mask, status: mergedStatus(), events: S.events.map((e) => view({ ...e })) };
+    download(`lens-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
   $('#expect-form').addEventListener('submit', (e) => {
     e.preventDefault();

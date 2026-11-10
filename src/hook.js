@@ -1,4 +1,4 @@
-/* Pega Constellation X-Ray: page-world hook.
+/* Constellation Lens: page-world hook.
  *
  * Records what a Pega Constellation page does through PCore, PConnect, the Redux-style store and the network:
  * the call, its arguments, what came back (data and exact shape), how long it took, and who called it.

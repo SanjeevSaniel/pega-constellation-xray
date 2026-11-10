@@ -1,7 +1,7 @@
-// Peek service worker.
+// Constellation Lens service worker.
 // 1. Registers the page hook for a site the user switched on (least privilege: nothing runs elsewhere).
 // 2. Relays events from a tab's bridge ports to the DevTools panel for that tab, and commands back.
-// 3. Plays one pulse on the toolbar icon of a tab whenever Peek records something there (red when it recorded a failure).
+// 3. Plays one pulse on the toolbar icon of a tab whenever Lens records something there (red when it recorded a failure).
 
 importScripts('src/mark.js'); // PeekMark.drawMark: the same drawing the PNG icons use
 
