@@ -55,7 +55,7 @@ Remote code: none. All code is in the package. There are no external requests fr
 - Screenshots: 1280 x 800 (or 640 x 400), up to five. Suggested: Network Response, Data pages, Views with the picker, Issues, the Health tab.
 - Small promo tile: 440 x 280 is ready in `store/promo-440x280.png` (`node tools/make-store-assets.mjs`). Marquee (1400 x 560) is optional.
 - Icon: 128 x 128 is in the package, an orange lens with white touches on a transparent background, with about 96 x 96 of artwork inside 16 px of transparent padding, as the store recommends. The 16 and 32 px toolbar sizes are drawn larger in their square.
-- Screenshots must be retaken from this build: the ones on the Lens page predate the new icon and the name "Lens" (they say "Constellation Lens"). Use the same redacted real-app captures, 1280 x 800, no client names or URLs.
+- Screenshots (1280 x 800) are in `store/`: `screenshot-1-data-pages-1280x800.png` is the Data pages tab on a real app with the new icon. The application-specific data page names in its list were replaced with generic placeholders (`D_ExampleStructure`, `D_ExampleItemsList`), so no client names are published. The store takes up to five: add Network, Views and Issues the same way, using generic names.
 
 ## The publishing process, step by step
 
