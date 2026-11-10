@@ -3,20 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pega Constellation X-Ray</title>
+<title>Peek</title>
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true">◎</span><strong>Constellation X-Ray</strong></div>
+  <div class="brand">
+    <!-- The mark: an eye with a star for a pupil. It plays one pulse whenever Peek records something (see ping() in panel.js). -->
+    <svg id="mark" class="mark" viewBox="0 0 32 32" width="26" height="26" role="img" aria-label="Peek">
+      <circle class="pulse" cx="16" cy="16" r="5.6" fill="none" stroke-width="1.6"/>
+      <path class="eye" d="M3 16C8 7.5 24 7.5 29 16C24 24.5 8 24.5 3 16Z" fill="none" stroke-width="2.4" stroke-linejoin="round"/>
+      <circle class="iris" cx="16" cy="16" r="5.6" fill="none" stroke-width="1.8"/>
+      <path class="star" d="M16 11.4L17.06 14.94L20.6 16L17.06 17.06L16 20.6L14.94 17.06L11.4 16L14.94 14.94Z"/>
+    </svg>
+    <div class="wordmark"><strong>Peek</strong><span class="tag">inside Pega Constellation</span></div>
+  </div>
   <div class="chips" id="chips" aria-live="polite"></div>
   <div class="actions">
     <button id="btn-enable" class="primary" hidden>Turn on for this site</button>
-    <button id="btn-reload" hidden title="Reload the page so X-Ray sees everything from the very first call">Reload &amp; capture from start</button>
+    <button id="btn-reload" hidden title="Reload the page so Peek sees everything from the very first call">Reload &amp; capture from start</button>
     <button id="btn-pause">Pause</button>
     <button id="btn-clear">Clear</button>
     <button id="btn-export">Export</button>
-    <label class="check" title="Show the shape of every value but hide the values themselves. Use it before sharing a screenshot or an export.">
+    <label class="check" title="Show the shape of every value but hide the values themselves. Use it before sharing a screenshot, a copy or an export. Error messages are kept, because they say what went wrong.">
       <input type="checkbox" id="mask"> Hide values
     </label>
   </div>
@@ -24,16 +33,18 @@
 
 <div id="banner" class="banner" hidden></div>
 
-<nav class="tabs" role="tablist" aria-label="X-Ray views">
+<nav class="tabs" role="tablist" aria-label="Peek views">
   <button role="tab" data-tab="activity" aria-selected="true">Activity <span class="count" id="n-activity">0</span></button>
+  <button role="tab" data-tab="data" aria-selected="false">Data pages <span class="count" id="n-data">0</span></button>
   <button role="tab" data-tab="network" aria-selected="false">Network <span class="count" id="n-network">0</span></button>
+  <button role="tab" data-tab="issues" aria-selected="false">Issues <span class="count" id="n-issues" hidden>0</span></button>
   <button role="tab" data-tab="expect" aria-selected="false">Was it called? <span class="count" id="n-expect"></span></button>
   <button role="tab" data-tab="component" aria-selected="false">Component</button>
-  <button role="tab" data-tab="health" aria-selected="false">Health <span class="count warn" id="n-health" hidden>0</span></button>
+  <button role="tab" data-tab="health" aria-selected="false">Health</button>
 </nav>
 
 <main>
-  <!-- Activity / Network share one split view -->
+  <!-- Activity, Data pages and Network share one split view -->
   <section id="view-list" class="split">
     <div class="pane list-pane">
       <div class="toolbar">
@@ -45,20 +56,38 @@
           <button data-kind="store" aria-pressed="false">Store</button>
           <button data-kind="pubsub" aria-pressed="false">Events</button>
         </div>
-        <label class="check"><input type="checkbox" id="hide-reads" checked> Hide quick reads</label>
-        <label class="check"><input type="checkbox" id="pega-only" checked> Pega calls only</label>
+        <label class="check" id="lbl-hide-reads"><input type="checkbox" id="hide-reads" checked> Hide quick reads</label>
+        <label class="check" id="lbl-pega-only"><input type="checkbox" id="pega-only" checked> Pega calls only</label>
         <label class="check"><input type="checkbox" id="only-problems"> Problems only</label>
       </div>
-      <div class="rows" id="rows" role="listbox" aria-label="Recorded activity"></div>
+      <div class="rows-wrap">
+        <div class="rows" id="rows" role="listbox" aria-label="Recorded activity"></div>
+        <button id="jump-latest" class="jump" hidden>↓ <span id="jump-n">0</span> new</button>
+      </div>
       <div class="empty" id="rows-empty"></div>
     </div>
     <div class="pane detail-pane" id="detail"></div>
   </section>
 
+  <section id="view-issues" hidden>
+    <div class="issues-bar">
+      <div class="seg" id="issue-levels" role="group" aria-label="Severity">
+        <button data-level="all" aria-pressed="true">All <span class="n" id="il-all">0</span></button>
+        <button data-level="bad" aria-pressed="false">Errors <span class="n" id="il-bad">0</span></button>
+        <button data-level="warn" aria-pressed="false">Checks <span class="n" id="il-warn">0</span></button>
+        <button data-level="info" aria-pressed="false">Notes <span class="n" id="il-info">0</span></button>
+      </div>
+      <input id="issue-q" type="search" placeholder="Filter issues" aria-label="Filter issues">
+      <span class="grow"></span>
+      <span id="issue-copy-all"></span>
+    </div>
+    <div id="issues-list"></div>
+  </section>
+
   <section id="view-expect" hidden>
     <div class="card">
       <h2>Was it called?</h2>
-      <p class="muted">Add a call or URL you expect to see. X-Ray tells you whether it happened, how many times, and what the last result was. Use plain text, or <code>/regex/i</code>.</p>
+      <p class="muted">Add a call or URL you expect to see. Peek tells you whether it happened, how many times, and what the last result was. Use plain text, or <code>/regex/i</code>.</p>
       <form id="expect-form" class="inline">
         <input id="expect-pattern" placeholder="e.g. getDataAsync, /data_views/, updateFieldValue" required>
         <select id="expect-kind" aria-label="Where to look">
@@ -72,8 +101,8 @@
 
   <section id="view-component" hidden>
     <div class="card">
-      <h2>Component X-Ray</h2>
-      <p class="muted">Select any element in the <strong>Elements</strong> panel. X-Ray finds the Constellation component behind it and shows what it was given, what it holds, and what it called.</p>
+      <h2>Component</h2>
+      <p class="muted">Select any element in the <strong>Elements</strong> panel. Peek finds the Constellation component behind it and shows what it was given, what it holds, and what it called.</p>
       <div class="inline">
         <button class="primary" id="btn-inspect">Inspect selected element</button>
         <button id="btn-list">List all components on the page</button>
@@ -87,6 +116,7 @@
     <div id="health-out"></div>
   </section>
 </main>
+<script src="src/report.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>

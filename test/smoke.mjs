@@ -5,14 +5,16 @@ import assert from 'node:assert/strict';
 
 const code = fs.readFileSync(new URL('../src/hook.js', import.meta.url), 'utf8');
 const posted = [];
+const listeners = [];
+const consoleCalls = [];
 let storeCb = null;
 
 const ctx = {
-  console, setTimeout, clearTimeout, Promise, Date, Error, Map, Set, WeakMap, WeakSet, Proxy, Reflect, JSON, Object, Array, Number, String, Symbol,
+  console: { log: console.log, error: (...a) => consoleCalls.push(['error', ...a]), warn: (...a) => consoleCalls.push(['warn', ...a]) }, setTimeout, clearTimeout, Promise, Date, Error, Map, Set, WeakMap, WeakSet, Proxy, Reflect, JSON, Object, Array, Number, String, Symbol,
   performance: { now: () => Date.now() },
   location: { href: 'https://pega.example.test/prweb/app' },
   postMessage: (m) => posted.push(m),
-  addEventListener: () => {},
+  addEventListener: (type, fn) => listeners.push([type, fn]),
   fetch: async () => ({
     ok: true, status: 200, statusText: 'OK',
     headers: { get: () => 'application/json', forEach: (cb) => cb('application/json', 'content-type') },
@@ -104,6 +106,21 @@ assert.equal(st.status.version, '24.2.0');
 PCore.getBoom = () => { throw new Error('boom'); };
 assert.throws(() => PCore.getBoom(), /boom/);
 assert.ok(st.buf.some((e) => e.name === 'PCore.getBoom' && e.status === 'error'));
+
+// ---- page errors and console issues
+const fire = (type, ev) => listeners.filter(([t]) => t === type).forEach(([, fn]) => fn(ev));
+fire('error', { message: 'Boom in app', filename: 'https://pega.example.test/app.js', lineno: 10, colno: 5, error: new Error('Boom in app') });
+fire('unhandledrejection', { reason: new Error('Async boom') });
+ctx.console.error('Something failed', { id: 7 });
+ctx.console.warn('Careful');
+const issues = st.buf.filter((e) => e.kind === 'issue');
+assert.equal(issues.length, 4, 'four issues recorded');
+assert.ok(issues.some((e) => e.name === 'Uncaught error' && e.message === 'Boom in app' && e.source.endsWith('app.js:10:5') && e.level === 'error'), 'uncaught error recorded with its place');
+assert.ok(issues.some((e) => e.name === 'Unhandled promise rejection' && /Async boom/.test(e.message)), 'unhandled rejection recorded');
+assert.ok(issues.some((e) => e.name === 'console.error' && e.message.includes('Something failed') && e.level === 'error'), 'console.error recorded');
+assert.ok(issues.some((e) => e.name === 'console.warn' && e.level === 'warn'), 'console.warn recorded');
+assert.ok(consoleCalls.some((c) => c[0] === 'error' && c[1] === 'Something failed'), 'the page console.error still ran');
+assert.ok(consoleCalls.some((c) => c[0] === 'warn' && c[1] === 'Careful'), 'the page console.warn still ran');
 
 console.log(`ok: ${st.buf.length} events recorded, all assertions passed`);
 process.exit(0);

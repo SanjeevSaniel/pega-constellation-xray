@@ -522,6 +522,55 @@
     };
   }
 
+  // ---------------------------------------------------------------- page errors and console warnings
+  // Recorded as `issue` events for the Issues view. The page's own handlers and console methods always run unchanged.
+  const MAX_ISSUES = 300;
+  let issueCount = 0;
+  let inConsole = false;
+  function issue(level, name, message, extra) {
+    if (st.paused || st.internal || issueCount >= MAX_ISSUES) return;
+    issueCount++;
+    emit({ kind: 'issue', name, level, access: 'event', status: level === 'warn' ? 'ok' : 'error', message: String(message ?? '').slice(0, 800), ...extra });
+  }
+  const stackLines = (e) => (e && e.stack ? String(e.stack).split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 10) : undefined);
+  const fmtArg = (a) => {
+    if (typeof a === 'string') return a;
+    if (a instanceof Error) return `${a.name}: ${a.message}`;
+    try { return JSON.stringify(snap(a)); } catch { return String(a); }
+  };
+
+  try {
+    G.addEventListener('error', (e) => {
+      try {
+        if (e && e.target && e.target !== G && e.target.tagName) {
+          issue('warn', 'Resource failed to load', `${String(e.target.tagName).toLowerCase()} ${e.target.src || e.target.href || ''}`.trim());
+          return;
+        }
+        issue('error', 'Uncaught error', e?.message || 'Script error', { source: e?.filename ? `${e.filename}:${e.lineno}:${e.colno}` : undefined, stack: stackLines(e?.error), error: e?.error ? snap(e.error) : undefined });
+      } catch { /* never break the page */ }
+    }, true);
+    G.addEventListener('unhandledrejection', (e) => {
+      try {
+        const r = e?.reason;
+        issue('error', 'Unhandled promise rejection', r instanceof Error ? `${r.name}: ${r.message}` : fmtArg(r), { stack: stackLines(r), error: snap(r) });
+      } catch { /* never break the page */ }
+    });
+  } catch { /* no event support here */ }
+
+  for (const level of ['error', 'warn']) {
+    const orig = G.console && G.console[level];
+    if (typeof orig !== 'function') continue;
+    try {
+      G.console[level] = function () {
+        if (!inConsole) {
+          inConsole = true;
+          try { issue(level === 'error' ? 'error' : 'warn', `console.${level}`, Array.from(arguments).map(fmtArg).join(' '), { args: snap(Array.from(arguments)), stack: callerStack() }); } catch { /* ignore */ } finally { inConsole = false; }
+        }
+        return orig.apply(this, arguments);
+      };
+    } catch { /* console is locked */ }
+  }
+
   // ---------------------------------------------------------------- finding components (React fibers)
   const seenGetters = new WeakSet();
   // React 17+ stores the fiber under __reactFiber$…; React 16 under __reactInternalInstance$…. Both are handled,
