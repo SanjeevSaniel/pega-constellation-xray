@@ -1,9 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Pega Constellation X-Ray",
-  "version": "0.1.0",
-  "description": "X-ray vision for Pega Constellation. A DevTools panel that records PCore, PConnect, store and API activity: what was called, with what, and the exact shape of the data that came back.",
+  "name": "Peek",
+  "short_name": "Peek",
+  "version": "0.2.0",
+  "description": "Peek inside a Pega Constellation app. A DevTools panel that records PCore, PConnect, store and API activity: what was called, with what, and the exact shape of the data that came back.",
   "minimum_chrome_version": "111",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": {
+    "default_title": "Peek: open DevTools and choose the Peek tab",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" }
+  },
   "devtools_page": "devtools.html",
   "background": { "service_worker": "background.js" },
   "permissions": ["scripting", "storage"],

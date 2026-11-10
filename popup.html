@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Peek</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1c1b29; --muted: #5f5d73; --bg: #ffffff; --line: #e0def0; --accent: #5b4bff; --spark: #e8920a; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ecebf6; --muted: #a09eb8; --bg: #17161f; --line: #33324a; --accent: #8b7dff; --spark: #ffc25c; } }
+  body { margin: 0; width: 260px; padding: 16px; background: var(--bg); color: var(--fg); font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .head strong { font-size: 16px; letter-spacing: -.01em; }
+  .eye { stroke: var(--accent); } .star { fill: var(--spark); }
+  p { margin: 0 0 8px; color: var(--muted); }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font: 12px ui-monospace, Consolas, monospace; color: var(--fg); }
+  ol { margin: 0; padding-left: 18px; color: var(--muted); }
+  li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="head">
+  <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+    <path class="eye" d="M3 16C8 7.5 24 7.5 29 16C24 24.5 8 24.5 3 16Z" fill="none" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle class="eye" cx="16" cy="16" r="5.6" fill="none" stroke-width="1.8"/>
+    <path class="star" d="M16 11.4L17.06 14.94L20.6 16L17.06 17.06L16 20.6L14.94 17.06L11.4 16L14.94 14.94Z"/>
+  </svg>
+  <strong>Peek</strong>
+</div>
+<p>Peek lives in DevTools.</p>
+<ol>
+  <li>Open your Pega app and press <kbd>F12</kbd>.</li>
+  <li>Choose the <strong>Peek</strong> tab.</li>
+  <li>Click <strong>Turn on for this site</strong>, then reload.</li>
+</ol>
+</body>
+</html>

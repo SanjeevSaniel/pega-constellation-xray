@@ -1,8 +1,42 @@
-// Pega Constellation X-Ray service worker.
+// Peek service worker.
 // 1. Registers the page hook for a site the user switched on (least privilege: nothing runs elsewhere).
 // 2. Relays events from a tab's bridge ports to the DevTools panel for that tab, and commands back.
+// 3. Plays one pulse on the toolbar icon of a tab whenever Peek records something there (red when it recorded a failure).
+
+importScripts('src/mark.js'); // PeekMark.drawMark: the same drawing the PNG icons use
 
 const tabs = new Map(); // tabId -> { panel: Port|null, bridges: Set<Port> }
+
+// ---- toolbar icon pulse
+const PULSE_MS = 700;
+const pulsing = new Map(); // tabId -> timer
+function iconFrame(t, bad) {
+  const imageData = {};
+  for (const size of [16, 32]) {
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    PeekMark.drawMark(ctx, size, t, bad ? { star: '#ff5d6c' } : {});
+    imageData[size] = ctx.getImageData(0, 0, size, size);
+  }
+  return imageData;
+}
+function setFrame(tabId, t, bad) {
+  try { chrome.action.setIcon({ tabId, imageData: iconFrame(t, bad) }).catch(() => {}); } catch { /* the tab is gone */ }
+}
+function pulse(tabId, bad) {
+  if (pulsing.has(tabId)) return; // one pulse at a time per tab, so a busy page does not flicker
+  const start = Date.now();
+  const tick = () => {
+    const t = (Date.now() - start) / PULSE_MS;
+    if (t >= 1) { setFrame(tabId, 0, false); pulsing.delete(tabId); return; }
+    setFrame(tabId, t, bad);
+    pulsing.set(tabId, setTimeout(tick, 70));
+  };
+  pulsing.set(tabId, 1);
+  tick();
+}
+const looksBad = (msg) => (msg.items || []).some((i) => i.status === 'error' || i.patch?.status === 'error' || i.patch?.http >= 400 || (i.kind === 'issue' && i.level !== 'warn'));
+chrome.tabs.onRemoved.addListener((tabId) => { clearTimeout(pulsing.get(tabId)); pulsing.delete(tabId); tabs.delete(tabId); });
 
 function entry(tabId) {
   if (!tabs.has(tabId)) tabs.set(tabId, { panel: null, bridges: new Set() });
@@ -14,7 +48,10 @@ chrome.runtime.onConnect.addListener((port) => {
     const tabId = port.sender.tab.id;
     const e = entry(tabId);
     e.bridges.add(port);
-    port.onMessage.addListener((msg) => e.panel?.postMessage({ ...msg, frameId: port.sender.frameId }));
+    port.onMessage.addListener((msg) => {
+      e.panel?.postMessage({ ...msg, frameId: port.sender.frameId });
+      if (msg.type === 'events') pulse(tabId, looksBad(msg));
+    });
     port.onDisconnect.addListener(() => e.bridges.delete(port));
     e.panel?.postMessage({ type: 'bridge-up', frameId: port.sender.frameId, url: port.sender.url });
   } else if (port.name.startsWith('panel:')) {

@@ -1,1 +1,1 @@
-chrome.devtools.panels.create('Constellation X-Ray', '', 'panel.html');
+chrome.devtools.panels.create('Peek', 'icons/icon-32.png', 'panel.html');
