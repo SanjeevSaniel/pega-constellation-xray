@@ -65,7 +65,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 | 1 | Developer account | You | Sign in to the dashboard, accept the developer agreement, pay the one-time registration fee, and verify your contact email. Turn on two-step verification on the Google account. |
 | 2 | Publisher type | You | Say whether you are a trader (a business) or not, as the dashboard asks. A trader's contact details are shown publicly. |
 | 3 | Make the assets | Together | Screenshots, a small promo tile, and a privacy policy page at a public URL (see Assets and Privacy above). I can write and host the privacy page on your site. |
-| 4 | Try it on a real Pega app | You | Load the unpacked build, switch it on, and check Network, Data pages, Views and Issues on a real app. It has only been run against a fake runtime so far. |
+| 4 | Try it on a real Pega app | You | Load the unpacked build, switch it on, and check Network, Data pages, Views and Issues on a real app. It has run live on Pega 24.2.5 only; check the picker and other versions if you can. |
 | 5 | Build the upload zip | Me | `git archive` with the files at the root of the zip (command below), then I check its file list. |
 | 6 | Add new item | You | In the dashboard choose **Add new item** and upload the store zip. The dashboard reads the manifest and fills in name, version and icon. |
 | 7 | Store listing tab | You | Paste the description and summary from this file, choose the category, add the screenshots, promo tile and the privacy policy URL. |
@@ -83,7 +83,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 - Upload `lens-v<version>-store.zip`: the files must sit at the **root** of the zip (`manifest.json` at the top), unlike the GitHub release zip, which has a folder.
 - Expect an in-depth review because of the broad optional host permissions and a recorder injected into the page. The justifications above are written for that.
 - Trademark: the name uses "Constellation", which is Pega's product name. The description says plainly that this is independent and not affiliated. If the store objects to the name, rename and keep the rest.
-- Honest limit: the tool has not yet been run against a live Pega app. Say so in the release notes, and try it on a real app before submitting.
+- Honest limit: it has run live on one Pega app (24.2.5, React 17+) but not on other versions, and the page picker is unconfirmed. Say so in the release notes.
 
 ## Build the upload zip
 

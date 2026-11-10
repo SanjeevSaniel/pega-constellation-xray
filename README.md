@@ -47,7 +47,7 @@ Checks are by capability, not version number, so one build is meant to cover **P
 
 If a future runtime changes shape, **Health** shows which part stopped matching and **Copy diagnostics** gives you something to report.
 
-> Honest limit: this has been tested against a fake runtime (`npm test`) and the panel against stubbed Chrome APIs, not yet against every live Pega version. Treat the first run on each version as a check, and use **Health** to see what attached.
+> Tested live: it has been run on a real Pega Constellation app (PCore 24.2.5, React 17+). There it attached to PCore, the store and the components, and the Activity, Data pages, Network, Views and Issues tabs filled with real traffic. Not yet confirmed live: the **Pick on page** picker, and other Pega versions. It is also tested against a fake runtime (`npm test`) and the panel against stubbed Chrome APIs. Use **Health** to see what attached on your app, and treat the first run on each version as a check.
 
 The **Data pages** tab reads the data page name and parameters from the call's arguments by their values (a string that is not a context, an object with a parameters-like key). Lens does not know Pega's exact signatures, so the tab says "read from the argument values" and always shows the raw arguments too.
 

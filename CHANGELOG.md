@@ -18,7 +18,7 @@ Renamed to **Lens**, with a hand-drawn icon, and a lot more to look at.
 - **Reliability**: Chrome puts an idle background worker to sleep and closes its connections; the page bridge now reconnects, and the open panel keeps the worker awake, so recording does not quietly stop.
 - **Web Store ready**: the manifest description fits the store's 132-character limit.
 
-Not yet tested against a live Pega app: the tool has been run against a fake runtime and stubbed Chrome APIs. Use **Health** to see what attached.
+Run live on a real Pega Constellation app (PCore 24.2.5, React 17+): it attached to PCore, the store and the components, and the Activity, Data pages, Network, Views and Issues tabs filled with real traffic. Not yet confirmed live: the page picker, and other Pega versions. Use **Health** to see what attached.
 
 ## 0.2.0
 
