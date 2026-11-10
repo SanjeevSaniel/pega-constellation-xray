@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.3
 
-Checked against Pega 26.1, and it can now write code from what it records. The Web Store package (0.3.2) is unchanged.
+Checked against Pega 26.1, and it can now write code from what it records.
 
 - **Copy as TypeScript**: turns the recorded structure of a request, response, argument list or call output into named interfaces (one per object, children first, optional keys marked), ready to paste. It replaces the old one-block `type Shape`.
 - **Copy as mock**: writes a `mock.ts` with those types and a sample of the recorded data (lists cut to three items). It keeps real values unless Hide values is on, then it keeps the structure and empties the values. Secret-looking keys are always replaced. The header says which it is.

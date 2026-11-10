@@ -106,7 +106,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 ## Build the upload zip
 
 ```
-git archive --format=zip -o lens-v0.3.2-store.zip HEAD
+git archive --format=zip -o lens-v0.3.3-store.zip HEAD
 ```
 
 `.gitattributes` already leaves out tests, tools and `package.json`.
