@@ -3,7 +3,7 @@
   "name": "Constellation Lens",
   "short_name": "Lens",
   "version": "0.3.0",
-  "description": "See inside a Pega Constellation app. A DevTools panel that records PCore, PConnect, store and API activity: what was called, with what, and the exact shape of the data that came back.",
+  "description": "See inside a Pega Constellation app: a DevTools panel that records PCore, PConnect, store and API calls and the shape of their data.",
   "minimum_chrome_version": "111",
   "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
   "action": {

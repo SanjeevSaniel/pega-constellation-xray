@@ -1148,6 +1148,8 @@
   });
   document.documentElement.classList.toggle('dark', chrome.devtools.panels.themeName === 'dark');
   setInterval(() => { if (S.events.some((e) => e.status === 'pending')) scheduleRender(); }, 2000);
+  // Chrome puts an idle service worker to sleep after about 30 seconds. A message on the port counts as activity, so this keeps it awake while the panel is open.
+  setInterval(() => send({ cmd: 'ping' }), 20000);
 
   connect();
   refreshSite();

@@ -58,7 +58,8 @@ chrome.runtime.onConnect.addListener((port) => {
     const tabId = Number(port.name.slice(6));
     const e = entry(tabId);
     e.panel = port;
-    port.onMessage.addListener((msg) => e.bridges.forEach((b) => b.postMessage(msg)));
+    // A ping only keeps this worker awake while the panel is open; it is not a command for the page.
+    port.onMessage.addListener((msg) => { if (msg && msg.cmd === 'ping') return; e.bridges.forEach((b) => b.postMessage(msg)); });
     port.onDisconnect.addListener(() => {
       if (e.panel === port) e.panel = null;
     });
