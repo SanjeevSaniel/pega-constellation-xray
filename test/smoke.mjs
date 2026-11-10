@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 
 const code = fs.readFileSync(new URL('../src/hook.js', import.meta.url), 'utf8');
 const posted = [];
+const BIG = JSON.stringify({ data: Array.from({ length: 90000 }, (_, i) => ({ id: i, note: 'row-' + i + '-xxxxxxxxxxxxxxxx' })) });
+let bigOn = false;
 const listeners = [];
 const consoleCalls = [];
 let storeCb = null;
@@ -18,7 +20,7 @@ const ctx = {
   fetch: async () => ({
     ok: true, status: 200, statusText: 'OK',
     headers: { get: () => 'application/json', forEach: (cb) => cb('application/json', 'content-type') },
-    clone() { return { text: async () => JSON.stringify({ data: [{ id: 1 }, { id: 2, note: 'x' }] }) }; },
+    clone() { return { text: async () => (bigOn ? BIG : JSON.stringify({ data: [{ id: 1 }, { id: 2, note: 'x' }] })) }; },
   }),
   Request: class {},
   URL, URLSearchParams,
@@ -106,6 +108,49 @@ assert.equal(st.status.version, '24.2.0');
 PCore.getBoom = () => { throw new Error('boom'); };
 assert.throws(() => PCore.getBoom(), /boom/);
 assert.ok(st.buf.some((e) => e.name === 'PCore.getBoom' && e.status === 'error'));
+
+// ---- a large body is kept in full (it used to be dropped above 300,000 characters), and headers are kept in full for the panel
+const rawFor = (id, side) => posted.filter((m) => m.type === 'body' && m.id === id && m.side === side).sort((a, b) => a.part - b.part);
+const reqEv = st.buf.find((e) => e.kind === 'net');
+assert.equal(reqEv.net.reqHeaders.Authorization, '[redacted]', 'redacted headers stay redacted');
+assert.equal(reqEv.net.reqHeadersFull.Authorization, 'Bearer secret', 'the full header is available to the panel');
+assert.ok(reqEv.net.urlFull.includes('token=abc'), 'the full URL is available to the panel');
+assert.equal(rawFor(reqEv.id, 'req').map((m) => m.data).join(''), '{"q":1}', 'a request body is sent as raw text');
+bigOn = true;
+await ctx.fetch('https://pega.example.test/prweb/api/v1/data_views/D_Big', { method: 'GET' });
+await new Promise((r2) => setTimeout(r2, 60));
+bigOn = false;
+const bigEv = st.buf.filter((e) => e.kind === 'net').pop();
+assert.ok(BIG.length > 3000000, 'the test body is larger than one message');
+const bigParts = rawFor(bigEv.id, 'res');
+assert.ok(bigParts.length >= 2, 'a big body is sent in pieces');
+assert.equal(bigParts[0].of, bigParts.length, 'each piece says how many there are');
+assert.equal(bigParts.map((m) => m.data).join(''), BIG, 'the full text arrives, not a marker');
+assert.equal(bigParts[0].truncated, false);
+assert.ok(typeof bigEv.result === 'object', 'the parsed preview is still built');
+assert.ok(!/not recorded|larger than/.test(JSON.stringify(bigEv.result).slice(0, 200)), 'no too-large marker');
+
+// ---- views: the mounted components as a tree (against a tiny fake page)
+const mkP = (name, type, label) => ({ getActionsApi() {}, getValue() {}, getRawMetadata: () => ({ name, type }), getContextName: () => 'app/primary_1', getPageReference: () => 'caseInfo.content', getConfigProps: () => ({ label, visibility: true }) });
+const mkEl = (tag, parent, p) => ({ nodeName: tag.toUpperCase(), parentElement: parent, className: '', '__reactFiber$t': { memoizedProps: p ? { getPConnect: () => p } : {}, return: null } });
+const vRoot = mkEl('div', null, mkP('RootView', 'View'));
+const vRegion = mkEl('section', vRoot, null);
+const vField = mkEl('div', vRegion, mkP('TextInput', 'Field', 'First name'));
+const vField2 = mkEl('div', vRegion, mkP('Dropdown', 'Field', 'Status'));
+ctx.document = { querySelectorAll: () => [vRoot, vRegion, vField, vField2] };
+const tree = ctx.__pegaXray.viewTree();
+assert.equal(tree.length, 3, 'three components found, the plain section is skipped');
+assert.equal(tree[0].parentId, null, 'the outer view is a root');
+assert.equal(tree[1].parentId, tree[0].id, 'a field sits under the view even with a plain element between');
+assert.equal(tree[2].parentId, tree[0].id);
+assert.equal(tree[1].label, 'First name');
+assert.equal(tree[1].type, 'Field');
+assert.equal(tree[1].index, 2, 'the position in the page is kept so it can be inspected again');
+const picked = ctx.__pegaXray.inspectIndex(tree[1].index);
+assert.equal(picked.found, true);
+assert.equal(picked.data.component, 'TextInput');
+assert.equal(ctx.__pegaXray.inspectIndex(99).found, false, 'a stale index answers, it does not throw');
+delete ctx.document;
 
 // ---- page errors and console issues
 const fire = (type, ev) => listeners.filter(([t]) => t === type).forEach(([, fn]) => fn(ev));

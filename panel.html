@@ -11,7 +11,7 @@
   <div class="brand">
     <!-- The mark: a lens with a constellation inside. It plays one pulse whenever Lens records something (see ping() in panel.js). -->
     <svg id="mark" class="mark" viewBox="0 0 32 32" width="28" height="28" role="img" aria-label="Constellation Lens">
-    <defs><linearGradient id="lens-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a86ff"/><stop offset="1" stop-color="#5b4bff"/></linearGradient><clipPath id="lens-clip"><rect width="32" height="32" rx="7.5"/></clipPath></defs>
+    <defs><linearGradient id="lens-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14c8d9"/><stop offset="1" stop-color="#2563eb"/></linearGradient><clipPath id="lens-clip"><rect width="32" height="32" rx="7.5"/></clipPath></defs>
     <rect width="32" height="32" rx="7.5" fill="url(#lens-g)"/>
     <g clip-path="url(#lens-clip)"><circle class="pulse" cx="14.5" cy="14.5" r="8.6" fill="none" stroke-width="1.8"/></g>
     <circle cx="14.5" cy="14.5" r="8.6" fill="none" stroke="#fff" stroke-width="2.8"/>
@@ -41,6 +41,7 @@
   <button role="tab" data-tab="activity" aria-selected="true">Activity <span class="count" id="n-activity">0</span></button>
   <button role="tab" data-tab="data" aria-selected="false">Data pages <span class="count" id="n-data">0</span></button>
   <button role="tab" data-tab="network" aria-selected="false">Network <span class="count" id="n-network">0</span></button>
+  <button role="tab" data-tab="views" aria-selected="false">Views <span class="count" id="n-views" hidden>0</span></button>
   <button role="tab" data-tab="issues" aria-selected="false">Issues <span class="count" id="n-issues" hidden>0</span></button>
   <button role="tab" data-tab="expect" aria-selected="false">Was it called? <span class="count" id="n-expect"></span></button>
   <button role="tab" data-tab="component" aria-selected="false">Component</button>
@@ -71,6 +72,23 @@
       <div class="empty" id="rows-empty"></div>
     </div>
     <div class="pane detail-pane" id="detail"></div>
+  </section>
+
+  <section id="view-views" class="split" hidden>
+    <div class="pane list-pane">
+      <div class="toolbar">
+        <button class="primary" id="btn-pick" title="Click a component on the page to choose it. Escape cancels.">Pick on page</button>
+        <button id="btn-views-refresh" title="Read the page again">Refresh</button>
+        <input id="views-q" type="search" placeholder="Filter views, regions, fields" aria-label="Filter components">
+        <label class="check" title="Hide the components that hold nothing, so views inside views stand out"><input type="checkbox" id="views-containers"> Containers only</label>
+        <button id="views-expand" type="button" title="Open every level">Expand all</button>
+        <button id="views-collapse" type="button" title="Close every level">Collapse all</button>
+        <span class="muted" id="views-count"></span>
+      </div>
+      <div class="rows views-rows" id="views-tree" aria-label="Components on the page"></div>
+      <div class="empty" id="views-empty"></div>
+    </div>
+    <div class="pane detail-pane" id="views-detail"></div>
   </section>
 
   <section id="view-issues" hidden>

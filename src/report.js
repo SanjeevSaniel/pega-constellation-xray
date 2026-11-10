@@ -295,7 +295,40 @@
     };
   }
 
-  const api = { plural, fmtTime, KIND, HTTP_HELP, labelCategory, describeShape, explain, rowsOf, rowCount, itemShape, columnsOf, typeName, isDataCall, dataInfo, networkOf, isFailed, findings, issueMarkdown, issuesMarkdown, issuesJson };
+  // ------------------------------------------------------------------ views
+
+  /** Nests the recorder's flat component list into a tree by parentId. With a filter it keeps the matches and their ancestors. */
+  function nestViews(flat, q = '', opts = {}) {
+    const byId = new Map(flat.map((n) => [n.id, { ...n, children: [], match: true, forceOpen: false }]));
+    const roots = [];
+    for (const n of byId.values()) {
+      const parent = n.parentId != null ? byId.get(n.parentId) : null;
+      if (parent && parent !== n) parent.children.push(n); else roots.push(n);
+    }
+    // Containers only: drop the components that hold nothing (the leaves), so views inside views stand out. Roots always stay.
+    const strip = (list) => list.map((n) => ({ ...n, children: strip(n.children.filter((c) => c.children.length > 0)) }));
+    const needle = String(q || '').trim().toLowerCase();
+    if (!needle) return opts.containersOnly ? strip(roots) : roots;
+    const hay = (n) => `${n.component} ${n.type} ${n.label} ${n.context} ${n.pageReference}`.toLowerCase();
+    const prune = (list) => list.flatMap((n) => {
+      const kids = prune(n.children);
+      const self = hay(n).includes(needle);
+      if (!self && !kids.length) return [];
+      return [{ ...n, children: kids, match: self, forceOpen: kids.length > 0 }];
+    });
+    const found = prune(roots);
+    return opts.containersOnly ? strip(found) : found;
+  }
+  /** The names from the outermost component down to the one with this id, for a breadcrumb. */
+  function viewPath(flat, id) {
+    const byId = new Map(flat.map((n) => [n.id, n]));
+    const out = [];
+    for (let n = byId.get(id), i = 0; n && i < 60; n = n.parentId != null ? byId.get(n.parentId) : null, i++) out.unshift(n.component);
+    return out;
+  }
+  const countViews = (roots) => roots.reduce((n, r) => n + 1 + countViews(r.children), 0);
+
+  const api = { nestViews, countViews, viewPath, plural, fmtTime, KIND, HTTP_HELP, labelCategory, describeShape, explain, rowsOf, rowCount, itemShape, columnsOf, typeName, isDataCall, dataInfo, networkOf, isFailed, findings, issueMarkdown, issuesMarkdown, issuesJson };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.XrayReport = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

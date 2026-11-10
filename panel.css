@@ -1,7 +1,7 @@
 /* Constellation Lens: panel styles. Light and dark follow DevTools' own theme. */
 :root {
   --bg: #ffffff; --bg2: #f6f6fb; --bg3: #ebebf4; --fg: #1c1b29; --muted: #5f5d73; --line: #e0def0;
-  --accent: #5b4bff; --accent-fg: #ffffff; --spark: #e8920a;
+  --accent: #2563eb; --accent-fg: #ffffff; --spark: #e8920a;
   --ok: #178044; --err: #d12d3f; --warn: #a15c00; --info: #2563eb;
   --k-pcore: #5b4bff; --k-pconn: #0e8a80; --k-net: #2563eb; --k-store: #a15c00; --k-pubsub: #9333ea; --k-issue: #d12d3f;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -14,7 +14,7 @@
 }
 :root.dark {
   --bg: #17161f; --bg2: #1e1d29; --bg3: #292836; --fg: #ecebf6; --muted: #a09eb8; --line: #33324a;
-  --accent: #8b7dff; --accent-fg: #14122b; --spark: #ffc25c;
+  --accent: #60a5fa; --accent-fg: #0b1220; --spark: #ffc25c;
   --ok: #4cc27a; --err: #ff7b86; --warn: #e3a34b; --info: #6cb0ff;
   --k-pcore: #a99bff; --k-pconn: #4fd1c5; --k-net: #6cb0ff; --k-store: #e3a34b; --k-pubsub: #d8a8ff; --k-issue: #ff7b86;
   --b-err-bg: #3d1b21; --b-err-fg: #ffa3ac; --b-err-bd: #703039;
@@ -57,8 +57,8 @@ code { background: var(--bg2); padding: 0 4px; border-radius: 4px; }
 .banner.warn { background: color-mix(in srgb, var(--warn) 14%, var(--bg)); }
 
 /* the mark: one pulse whenever something is recorded */
-.mark .star { fill: var(--spark); transform-box: fill-box; transform-origin: center; }
-.mark .pulse { stroke: var(--spark); opacity: 0; transform-box: fill-box; transform-origin: center; }
+.mark .star { fill: #ffc13d; transform-box: fill-box; transform-origin: center; }
+.mark .pulse { stroke: #ffc13d; opacity: 0; transform-box: fill-box; transform-origin: center; }
 .mark.ping .pulse { animation: lens-ripple .7s ease-out; }
 .mark.ping .star { animation: lens-twinkle .7s ease-out; }
 .mark.ping.bad .star { fill: var(--err); }
@@ -173,3 +173,58 @@ th { color: var(--muted); font-weight: 600; }
 .issue .inner { padding: 4px 12px 12px; border-top: 1px solid var(--bg3); }
 
 @media (max-width: 760px) { .split { grid-template-columns: 1fr; grid-template-rows: 45% 55%; } .list-pane { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+/* readable value trees: guides, a peek at the keys when closed, long text you can open, expand and collapse all */
+.treebox { position: relative; }
+.tree-tools { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 4px; }
+.tree-tools button, .tools button.on { font-size: 11px; min-height: 22px; padding: 0 8px; }
+.tools button[aria-pressed=true], .tools button.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.tree ul { margin-left: 5px; padding-left: 12px; border-left: 1px solid var(--line); }
+.tree li { padding: 1px 0; }
+.tree li:hover > details > summary, .tree li:hover > .srow { background: var(--bg2); }
+.tree summary .pv { color: var(--muted); font-style: italic; }
+.tree details[open] > summary .pv { display: none; }
+.tree summary, .tree .srow { border-radius: 4px; }
+.v-str.long { cursor: pointer; }
+.v-str.long:hover { text-decoration: underline dotted; }
+
+/* the structure as a schema: name, type chip, and how many */
+.schema .sk { color: var(--fg); font-weight: 600; }
+.schema .sopt { color: var(--warn); font-weight: 700; margin-left: 1px; }
+.schema .srow { padding-left: 12px; }
+.ty { display: inline-block; font-size: 10.5px; line-height: 1.5; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 10%, transparent); font-family: var(--mono); }
+.ty-string { color: var(--ok); } .ty-number { color: var(--info); } .ty-boolean { color: var(--warn); }
+.ty-object, .ty-array { color: var(--k-pcore); } .ty-null, .ty-undefined, .ty-unknown, .ty-function, .ty-promise { color: var(--muted); }
+.tsdoc { margin-top: 10px; }
+.tsdoc summary { cursor: pointer; color: var(--muted); }
+.tsdoc pre { margin-top: 6px; }
+
+/* the Network-style tabs: key/value tables, raw text, timing bars */
+table.kv th { width: 34%; max-width: 280px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--fg); word-break: break-all; }
+table.kv td { font-family: var(--mono); font-size: 11.5px; word-break: break-all; white-space: normal; max-width: none; }
+table.kv td.redacted { color: var(--muted); font-style: italic; }
+pre.raw { max-height: 60vh; overflow: auto; font-size: 11.5px; }
+pre.raw.nowrap { white-space: pre; word-break: normal; }
+.phases { display: grid; gap: 6px; }
+.phase { display: grid; grid-template-columns: 170px 1fr 70px; gap: 10px; align-items: center; }
+.phase .pl { color: var(--muted); }
+.phase .pv { text-align: right; font-family: var(--mono); font-size: 11.5px; }
+.phase .bar { display: block; height: 10px; background: var(--bg3); border-radius: 999px; overflow: hidden; }
+.phase .bar span { display: block; height: 100%; min-width: 2px; background: var(--accent); border-radius: 999px; }
+
+/* views: the component tree and the picker */
+.views-rows { padding: 6px 4px; }
+.vtree, .vtree ul { font-family: inherit; font-size: 12px; }
+.vtree ul { margin-left: 8px; padding-left: 12px; }
+.vrow { display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 8px; border-radius: 6px; cursor: pointer; max-width: 100%; }
+.vrow:hover { background: var(--bg2); }
+.vrow.sel { background: color-mix(in srgb, var(--accent) 16%, var(--bg)); box-shadow: inset 3px 0 0 var(--accent); }
+.vrow.dim { opacity: .55; }
+.vname { font-weight: 600; }
+.vctx { color: var(--muted); font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vtree summary { display: block; }
+.vtree summary::before { margin-right: 2px; }
+.vin { color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--bg2); font-size: 12px; }
+.crumbs .sep { color: var(--muted); }
+.crumbs .here { font-weight: 700; color: var(--accent); }

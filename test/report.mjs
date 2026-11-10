@@ -73,4 +73,27 @@ const json = R.issuesJson(found, { version: '0.2.0', now: 1700000100000 }, { eve
 assert.equal(json.issues.length, found.length);
 assert.doesNotThrow(() => JSON.stringify(json), 'the JSON copy is serialisable');
 
+// ---- the views tree
+const flat = [
+  { id: 1, parentId: null, component: 'RootView', type: 'View', label: '', context: 'app/primary_1', pageReference: 'caseInfo.content' },
+  { id: 2, parentId: 1, component: 'DefaultForm', type: 'Template', label: '', context: 'app/primary_1', pageReference: '' },
+  { id: 3, parentId: 2, component: 'TextInput', type: 'Field', label: 'First name', context: 'app/primary_1', pageReference: '' },
+  { id: 4, parentId: 2, component: 'Dropdown', type: 'Field', label: 'Status', context: 'app/primary_1', pageReference: '' },
+  { id: 5, parentId: null, component: 'Footer', type: 'Region', label: '', context: 'app/primary_1', pageReference: '' },
+];
+const nested = R.nestViews(flat);
+assert.equal(nested.length, 2, 'two roots');
+assert.equal(nested[0].children[0].children.length, 2, 'the form holds two fields');
+assert.equal(R.countViews(nested), 5);
+const filtered = R.nestViews(flat, 'first');
+assert.equal(R.countViews(filtered), 3, 'a match keeps its ancestors: view, form and the field');
+assert.equal(filtered[0].children[0].children[0].match, true);
+assert.equal(filtered[0].match, false, 'an ancestor kept for the path is marked as not matching');
+assert.equal(R.nestViews(flat, 'nothing like this').length, 0);
+const containers = R.nestViews(flat, '', { containersOnly: true });
+assert.equal(R.countViews(containers), 3, 'leaves are dropped: the view, the form and the footer root remain');
+assert.equal(containers[0].children[0].children.length, 0, 'the form stays as a container; its fields are hidden');
+assert.deepEqual(R.viewPath(flat, 3), ['RootView', 'DefaultForm', 'TextInput'], 'the path runs from the outermost component down');
+assert.deepEqual(R.viewPath(flat, 5), ['Footer']);
+
 console.log('ok: report logic, all assertions passed');

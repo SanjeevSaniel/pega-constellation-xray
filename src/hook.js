@@ -3,6 +3,7 @@
  * Records what a Pega Constellation page does through PCore, PConnect, the Redux-style store and the network:
  * the call, its arguments, what came back (data and exact shape), how long it took, and who called it.
  *
+ * Request and response bodies are kept in full as raw text and sent to the panel in pieces.
  * Nothing leaves the browser. Events go to the DevTools panel for this tab and nowhere else.
  * Only API names documented in the Constellation guide are relied on; everything else is duck-typed and guarded,
  * so an unknown runtime shape degrades to "not recorded" instead of breaking the page.
@@ -422,13 +423,69 @@
     return 'other';
   }
   const textual = (ct) => !ct || /json|text|xml|javascript|x-www-form-urlencoded|graphql/i.test(ct);
-  const MAX_BODY = 300000;
+  // Bodies are kept in full as raw text and sent to the panel in pieces, so a big response is never dropped.
+  const PARSE_LIMIT = 8000000; // the largest body parsed into a tree; a bigger one still keeps its full raw text
+  const RAW_LIMIT = 30000000; // the longest raw body kept (characters)
+  const RAW_BUDGET = 80000000; // all raw bodies kept in the page, oldest dropped first (the panel has its own budget)
+  const CHUNK = 2000000; // characters per message
+  const rawStore = new Map(); // `${eventId}:${side}` -> { text, truncated }
+  let rawTotal = 0;
+
+  function postBody(id, side, text, truncated) {
+    const of = Math.max(1, Math.ceil(text.length / CHUNK));
+    for (let i = 0; i < of; i++) post({ type: 'body', id, side, part: i, of, truncated, total: text.length, data: text.slice(i * CHUNK, (i + 1) * CHUNK) });
+  }
+  /** Keeps and sends a request or response body. side is 'req' or 'res'. */
+  function sendBody(id, side, text) {
+    if (typeof text !== 'string' || st.paused) return;
+    const truncated = text.length > RAW_LIMIT;
+    const t = truncated ? text.slice(0, RAW_LIMIT) : text;
+    rawStore.set(`${id}:${side}`, { text: t, truncated });
+    rawTotal += t.length;
+    for (const [k, v] of rawStore) {
+      if (rawTotal <= RAW_BUDGET) break;
+      rawStore.delete(k);
+      rawTotal -= v.text.length;
+      post({ type: 'body-dropped', key: k });
+    }
+    postBody(id, side, t, truncated);
+  }
 
   function parseBody(text) {
     if (text == null) return undefined;
     if (typeof text !== 'string') return text;
-    if (text.length > MAX_BODY) return `[body larger than ${MAX_BODY} characters, not recorded]`;
+    if (text.length > PARSE_LIMIT) return `[large body, ${text.length} characters: the Response tab has the full text]`;
     try { return JSON.parse(text); } catch { return text; }
+  }
+
+  const absUrl = (u) => { try { return new URL(u, G.location?.href).href; } catch { return String(u); } };
+
+  /** The browser's own timing for a finished request (the same numbers the Network tab draws), when it exposes them. */
+  function timingFor(ev, perf0, url, attempt = 0) {
+    setTimeout(() => {
+      try {
+        if (typeof performance === 'undefined' || typeof performance.getEntriesByName !== 'function') return;
+        const entries = performance.getEntriesByName(absUrl(url)).filter((e) => e.startTime >= perf0 - 30).sort((a, b) => a.startTime - b.startTime);
+        const e = entries[0];
+        if (!e) { if (attempt < 3) timingFor(ev, perf0, url, attempt + 1); return; }
+        const r1 = (n) => Math.round(n * 10) / 10;
+        const visible = e.responseStart > 0; // zeros mean a cross-origin request without Timing-Allow-Origin
+        patch(ev, {
+          timing: {
+            startMs: r1(e.startTime), totalMs: r1(e.duration), protocol: e.nextHopProtocol || '',
+            transferSize: e.transferSize, encodedBodySize: e.encodedBodySize, decodedBodySize: e.decodedBodySize,
+            phases: visible ? {
+              stalled: r1(Math.max(0, (e.domainLookupStart || e.fetchStart) - e.startTime)),
+              dns: r1(e.domainLookupEnd - e.domainLookupStart),
+              connect: r1(e.secureConnectionStart ? e.secureConnectionStart - e.connectStart : e.connectEnd - e.connectStart),
+              tls: e.secureConnectionStart ? r1(e.connectEnd - e.secureConnectionStart) : 0,
+              waiting: r1(e.responseStart - e.requestStart),
+              download: r1(e.responseEnd - e.responseStart),
+            } : null,
+          },
+        });
+      } catch { /* timing is best effort */ }
+    }, attempt ? 300 : 80);
   }
   function describeBody(b) {
     if (b == null) return undefined;
@@ -438,7 +495,7 @@
     if (typeof Blob !== 'undefined' && b instanceof Blob) return `[blob ${b.size} bytes]`;
     return `[${Object.prototype.toString.call(b)}]`;
   }
-  const headersToObj = (h) => {
+  const headersToObj = (h, keep) => {
     const o = {};
     try {
       if (!h) return o;
@@ -446,15 +503,20 @@
       else if (Array.isArray(h)) h.forEach(([k, v]) => { o[k] = v; });
       else Object.assign(o, h);
     } catch { /* ignore */ }
-    return redactObj(o);
+    return keep ? o : redactObj(o);
+  };
+  const parseRawHeaders = (text) => {
+    const o = {};
+    String(text || '').trim().split(/[\r\n]+/).forEach((line) => { const i = line.indexOf(':'); if (i > 0) o[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim(); });
+    return o;
   };
 
-  function netEvent(method, url, reqHeaders, reqBody, via) {
+  function netEvent(method, url, reqHeaders, reqBody, via, reqHeadersFull) {
     const cat = categorize(url);
     const parent = st.stack[st.stack.length - 1] || 0;
     return emit({
       kind: 'net', name: `${method} ${redactUrl(url).replace(/^https?:\/\/[^/]+/, '')}`, access: 'net', status: 'pending', parent,
-      net: { via, method, url: redactUrl(url), category: cat, pega: cat !== 'other' || PEGA_URL.test(String(url)), reqHeaders, reqBody: snap(reqBody), reqShape: reqBody === undefined ? undefined : shape(reqBody) },
+      net: { via, method, url: redactUrl(url), urlFull: absUrl(url), reqHeadersFull, category: cat, pega: cat !== 'other' || PEGA_URL.test(String(url)), reqHeaders, reqBody: snap(reqBody), reqShape: reqBody === undefined ? undefined : shape(reqBody) },
       stack: callerStack(),
     });
   }
@@ -468,15 +530,19 @@
         const req = typeof Request !== 'undefined' && input instanceof Request ? input : null;
         const method = String(init?.method || req?.method || 'GET').toUpperCase();
         const url = req ? req.url : String(input?.url ?? input);
-        const ev = netEvent(method, url, headersToObj(init?.headers || req?.headers), describeBody(init?.body), 'fetch');
+        const hdrs = init?.headers || req?.headers;
+        const ev = netEvent(method, url, headersToObj(hdrs), describeBody(init?.body), 'fetch', headersToObj(hdrs, true));
+        const reqBody = init?.body;
+        const reqText = typeof reqBody === 'string' ? reqBody : (typeof URLSearchParams !== 'undefined' && reqBody instanceof URLSearchParams ? String(reqBody) : undefined);
+        if (reqText !== undefined) sendBody(ev.id, 'req', reqText);
         const t0 = perf();
         p.then(
           (res) => {
             const ct = res.headers?.get?.('content-type') || '';
-            const base = { ms: Math.round(perf() - t0), http: res.status, statusText: res.statusText, status: res.ok ? 'ok' : 'error', resHeaders: headersToObj(res.headers), contentType: ct };
-            if (!textual(ct)) return patch(ev, { ...base, result: `[${ct || 'binary'} not recorded]` });
+            const base = { ms: Math.round(perf() - t0), http: res.status, statusText: res.statusText, status: res.ok ? 'ok' : 'error', resHeaders: headersToObj(res.headers), resHeadersFull: headersToObj(res.headers, true), finalUrl: res.url || undefined, redirected: !!res.redirected, contentType: ct };
+            if (!textual(ct)) { patch(ev, { ...base, result: `[${ct || 'binary'} not recorded]` }); timingFor(ev, t0, url); return; }
             res.clone().text().then(
-              (txt) => { const body = parseBody(txt); patch(ev, { ...base, result: snap(body), shape: shape(body), bytes: txt.length }); },
+              (txt) => { const body = parseBody(txt); patch(ev, { ...base, result: snap(body), shape: shape(body), bytes: txt.length }); sendBody(ev.id, 'res', txt); timingFor(ev, t0, url); },
               () => patch(ev, base),
             );
           },
@@ -504,16 +570,21 @@
       const m = this.__pxr;
       if (m && !st.paused && !st.internal) {
         try {
-          const ev = netEvent(m.method, m.url, redactObj(m.headers), describeBody(body), 'xhr');
+          const ev = netEvent(m.method, m.url, redactObj(m.headers), describeBody(body), 'xhr', { ...m.headers });
+          if (typeof body === 'string') sendBody(ev.id, 'req', body);
           const t0 = perf();
           this.addEventListener('loadend', () => {
             try {
               const ct = this.getResponseHeader('content-type') || '';
-              const base = { ms: Math.round(perf() - t0), http: this.status, statusText: this.statusText, status: this.status >= 200 && this.status < 400 ? 'ok' : 'error', contentType: ct };
-              if (this.responseType && this.responseType !== 'text' && this.responseType !== 'json') return patch(ev, { ...base, result: `[${this.responseType} not recorded]` });
+              const all = parseRawHeaders(this.getAllResponseHeaders());
+              const base = { ms: Math.round(perf() - t0), http: this.status, statusText: this.statusText, status: this.status >= 200 && this.status < 400 ? 'ok' : 'error', contentType: ct, resHeaders: redactObj(all), resHeadersFull: all, finalUrl: this.responseURL || undefined };
+              if (this.responseType && this.responseType !== 'text' && this.responseType !== 'json') { patch(ev, { ...base, result: `[${this.responseType} not recorded]` }); timingFor(ev, t0, m.url); return; }
               const raw = this.responseType === 'json' ? this.response : this.responseText;
               const body2 = typeof raw === 'string' ? parseBody(raw) : raw;
-              patch(ev, { ...base, result: snap(body2), shape: shape(body2) });
+              patch(ev, { ...base, result: snap(body2), shape: shape(body2), bytes: typeof raw === 'string' ? raw.length : undefined });
+              if (typeof raw === 'string') sendBody(ev.id, 'res', raw);
+              else if (raw != null) { try { sendBody(ev.id, 'res', JSON.stringify(raw)); } catch { /* not serialisable */ } }
+              timingFor(ev, t0, m.url);
             } catch { /* ignore */ }
           });
         } catch { /* ignore */ }
@@ -672,6 +743,126 @@
     return rows;
   }
 
+  // ---------------------------------------------------------------- views: the mounted components as a tree, and the page picker
+  const allElements = () => (G.document ? Array.from(document.querySelectorAll('*')) : []);
+  const componentName = (el) => internal(() => {
+    const hit = pConnFromFiber(fiberOf(el));
+    if (!hit) return '';
+    const meta = hit.getter()?.getRawMetadata?.();
+    return String(meta?.name ?? meta?.type ?? '');
+  }, '');
+
+  /**
+   * The components on the page as a flat list. Each one's nearest ancestor component is its parent, so the panel can nest them
+   * into views, regions and fields. Reads only. Components inside closed shadow roots are not reached (same as listComponents).
+   */
+  function viewTree() {
+    const all = allElements();
+    const nodes = [];
+    const byEl = new Map();
+    const seen = new WeakSet();
+    for (let i = 0; i < all.length && i < 8000; i++) {
+      const hit = pConnFromFiber(fiberOf(all[i]));
+      if (!hit || seen.has(hit.getter)) continue;
+      seen.add(hit.getter);
+      internal(() => {
+        const p = hit.getter();
+        const meta = p?.getRawMetadata?.();
+        const cfg = p?.getConfigProps?.();
+        const node = {
+          id: nodes.length + 1, parentId: null, index: i,
+          component: String(meta?.name ?? meta?.type ?? '?'),
+          type: meta?.type != null ? String(meta.type) : '',
+          context: String(p?.getContextName?.() ?? ''),
+          pageReference: String(p?.getPageReference?.() ?? ''),
+          label: typeof cfg?.label === 'string' ? cfg.label.slice(0, 80) : '',
+          configKeys: cfg && typeof cfg === 'object' ? Object.keys(cfg).length : 0,
+          tag: String(all[i].nodeName || '').toLowerCase(),
+        };
+        nodes.push(node);
+        byEl.set(all[i], node);
+      });
+    }
+    for (const n of nodes) {
+      let p = all[n.index].parentElement;
+      while (p && !byEl.has(p)) p = p.parentElement || (p.getRootNode ? p.getRootNode().host : null) || null;
+      if (p) n.parentId = byEl.get(p).id;
+    }
+    return nodes;
+  }
+  /** Everything a component knows, by its position in the page's element list (from viewTree). */
+  function inspectIndex(i) {
+    const el = allElements()[i];
+    return el ? inspectElement(el) : { found: false, reason: 'That element is no longer on the page.' };
+  }
+
+  // A highlight box and label drawn over the page, in a closed shadow root so the page's own CSS cannot touch it.
+  let overlay = null;
+  function ensureOverlay() {
+    if (overlay || !G.document || !document.documentElement) return overlay;
+    const host = document.createElement('div');
+    host.setAttribute('data-lens-overlay', '');
+    host.style.cssText = 'all:initial;position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none';
+    const root = host.attachShadow ? host.attachShadow({ mode: 'closed' }) : host;
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;box-sizing:border-box;border:2px solid #2563eb;background:rgba(37,99,235,.16);border-radius:3px;pointer-events:none;display:none';
+    const tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;font:12px/1.4 system-ui,sans-serif;color:#fff;background:#1e3a8a;padding:3px 8px;border-radius:4px;pointer-events:none;display:none;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    root.append(box, tip);
+    document.documentElement.append(host);
+    overlay = { box, tip };
+    return overlay;
+  }
+  function place(el, text) {
+    const o = ensureOverlay();
+    if (!o || !el || !el.getBoundingClientRect) return;
+    const r = el.getBoundingClientRect();
+    Object.assign(o.box.style, { display: 'block', left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    if (text) {
+      o.tip.textContent = text;
+      Object.assign(o.tip.style, { display: 'block', left: `${Math.max(0, r.left)}px`, top: `${r.top > 28 ? r.top - 26 : r.bottom + 4}px` });
+    } else o.tip.style.display = 'none';
+  }
+  function hideOverlay() { if (overlay) { overlay.box.style.display = 'none'; overlay.tip.style.display = 'none'; } }
+  /** Scroll a component into view and outline it for a moment. */
+  function highlight(i) {
+    const el = allElements()[i];
+    if (!el) return false;
+    try { el.scrollIntoView?.({ block: 'center', inline: 'nearest' }); } catch { /* ignore */ }
+    place(el, componentName(el));
+    setTimeout(hideOverlay, 1600);
+    return true;
+  }
+
+  // The picker: hover to outline the component under the pointer, click to choose it (the click does not reach the page), Escape to cancel.
+  let picker = null;
+  function stopPicker() {
+    if (!picker) return;
+    for (const [t, f] of picker.handlers) document.removeEventListener(t, f, true);
+    picker = null;
+    hideOverlay();
+  }
+  function startPicker() {
+    if (!G.document) return false;
+    stopPicker();
+    let target = null;
+    const swallow = (e) => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
+    const move = (e) => { target = e.target; const name = componentName(target); place(target, name || 'no component here'); };
+    const click = (e) => {
+      swallow(e);
+      const t = target || e.target;
+      const index = allElements().indexOf(t);
+      const result = inspectElement(t);
+      stopPicker();
+      post({ type: 'picked', index, name: componentName(t), result });
+    };
+    const key = (e) => { if (e.key === 'Escape') { swallow(e); stopPicker(); post({ type: 'picked', cancelled: true }); } };
+    const handlers = [['mousemove', move], ['click', click], ['keydown', key], ['mousedown', swallow], ['mouseup', swallow], ['pointerdown', swallow], ['pointerup', swallow], ['touchstart', swallow], ['contextmenu', swallow]];
+    for (const [t, f] of handlers) document.addEventListener(t, f, true);
+    picker = { handlers };
+    return true;
+  }
+
   // ---------------------------------------------------------------- commands from the panel
   G.addEventListener?.('message', (e) => {
     const c = e.source === G && e.data && e.data.__pxr_cmd;
@@ -679,12 +870,13 @@
     if (c.cmd === 'replay') {
       post({ type: 'status', status: st.status });
       for (let i = 0; i < st.buf.length; i += 200) post({ type: 'events', items: st.buf.slice(i, i + 200), replay: true });
-    } else if (c.cmd === 'clear') { st.buf.length = 0; st.q.length = 0; }
+      for (const [k, v] of rawStore) { const i = k.indexOf(':'); postBody(Number(k.slice(0, i)), k.slice(i + 1), v.text, v.truncated); }
+    } else if (c.cmd === 'clear') { st.buf.length = 0; st.q.length = 0; rawStore.clear(); rawTotal = 0; }
     else if (c.cmd === 'pause') st.paused = true;
     else if (c.cmd === 'resume') st.paused = false;
     else if (c.cmd === 'rescan') { scan(document.documentElement); status({ react: st.status.react }); }
   });
 
-  G.__pegaXray = { version: '0.1.0', inspectElement, listComponents, state: st, _snap: snap, _shape: shape };
+  G.__pegaXray = { version: '0.2.0', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
   post({ type: 'status', status: st.status });
 })();
