@@ -1,4 +1,4 @@
-/* Constellation Lens: the panel's pure logic.
+/* Lens: the panel's pure logic.
  *
  * Plain-English explanations, the data-call reader, the issue finder and the copy-ready reports. No DOM and no chrome.*
  * in here, so the panel and the tests (test/report.mjs) use the same code.
@@ -265,9 +265,9 @@
     const bad = list.filter((f) => f.level === 'bad').length;
     const warn = list.filter((f) => f.level === 'warn').length;
     const head = [
-      `# Constellation Lens: issues`,
+      `# Lens: issues`,
       '',
-      `- Tool: ${meta.tool || 'Constellation Lens'}${meta.version ? ` ${meta.version}` : ''}`,
+      `- Tool: ${meta.tool || 'Lens'}${meta.version ? ` ${meta.version}` : ''}`,
       meta.origin ? `- Page: ${meta.origin}` : '',
       meta.runtime ? `- Pega runtime: ${meta.runtime}` : '',
       `- Copied: ${new Date(meta.now || Date.now()).toISOString()}`,
@@ -281,7 +281,7 @@
   function issuesJson(list, meta = {}, opts = {}) {
     const view = opts.view || ((v) => v);
     return {
-      tool: meta.tool || 'Constellation Lens',
+      tool: meta.tool || 'Lens',
       version: meta.version,
       origin: meta.origin,
       runtime: meta.runtime,

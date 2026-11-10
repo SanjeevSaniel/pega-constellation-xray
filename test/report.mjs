@@ -65,11 +65,11 @@ assert.match(md, /at foo \(app\.js:1:1\)/, 'call stack included');
 const mask = (v) => JSON.parse(JSON.stringify(v, (k, x) => (typeof x === 'string' ? '‹string›' : x)));
 const masked = R.issueMarkdown(f422, { events, view: mask });
 assert.ok(!/Required field missing/.test(masked) && /‹string›/.test(masked), 'Hide values masks the copied values');
-const all = R.issuesMarkdown(found, { tool: 'Constellation Lens', version: '0.3.0', origin: 'https://pega.example.test', valuesHidden: false, now: 1700000100000 }, { events });
-assert.match(all, /^# Constellation Lens: issues/);
+const all = R.issuesMarkdown(found, { tool: 'Lens', version: '0.3.1', origin: 'https://pega.example.test', valuesHidden: false, now: 1700000100000 }, { events });
+assert.match(all, /^# Lens: issues/);
 assert.match(all, /Found: 3 errors, 1 check, 1 note/);
 assert.equal((all.match(/^### /gm) || []).length, found.length, 'every issue is in the report');
-const json = R.issuesJson(found, { version: '0.3.0', now: 1700000100000 }, { events });
+const json = R.issuesJson(found, { version: '0.3.1', now: 1700000100000 }, { events });
 assert.equal(json.issues.length, found.length);
 assert.doesNotThrow(() => JSON.stringify(json), 'the JSON copy is serialisable');
 

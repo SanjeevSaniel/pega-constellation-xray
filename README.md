@@ -1,10 +1,10 @@
-# Constellation Lens
+# Lens
 
 See inside a Pega Constellation app. A Chrome DevTools panel that records what your page does through **PCore**, **PConnect**, the **store** and the **network**: what was called, with which arguments, what came back, the exact structure of that data, how long it took, and who called it.
 
 Built for debugging custom DX components: "was this API even called?", "what did it return?", "what shape is the data my component receives?", "why did that fail?".
 
-Constellation Lens was called *Pega Constellation X-Ray* in 0.1. The folder and repository keep the old name for now.
+Lens was called *Pega Constellation X-Ray* in 0.1. The folder and repository keep the old name for now.
 
 ## Install from a release (easiest)
 

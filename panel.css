@@ -1,4 +1,4 @@
-/* Constellation Lens: panel styles. Light and dark follow DevTools' own theme. */
+/* Lens: panel styles. Light and dark follow DevTools' own theme. */
 :root {
   --bg: #ffffff; --bg2: #f6f6fb; --bg3: #ebebf4; --fg: #1c1b29; --muted: #5f5d73; --line: #e0def0;
   --accent: #2563eb; --accent-fg: #ffffff; --spark: #e8920a;

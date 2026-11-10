@@ -6,14 +6,14 @@ Everything the Developer Dashboard asks for, written once. Nothing here is submi
 
 | Field | Value |
 | --- | --- |
-| Name | Constellation Lens |
+| Name | Lens |
 | Summary (132 characters at most) | See inside a Pega Constellation app: a DevTools panel that records PCore, PConnect, store and API calls and the shape of their data. |
 | Category | Developer Tools |
 | Language | English |
 
 ### Description
 
-Constellation Lens shows you what a Pega Constellation app is really doing.
+Lens shows you what a Pega Constellation app is really doing.
 
 Open DevTools on your Pega app, switch the Lens tab on for that site, reload, and see every PCore call, PConnect call, store change and network request: what was called, with which arguments, what came back and its exact structure.
 
@@ -80,7 +80,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 ## Before submitting
 
 - Register a developer account (one-time fee) and verify the contact email; turn on two-step verification.
-- Upload `constellation-lens-v<version>-store.zip`: the files must sit at the **root** of the zip (`manifest.json` at the top), unlike the GitHub release zip, which has a folder.
+- Upload `lens-v<version>-store.zip`: the files must sit at the **root** of the zip (`manifest.json` at the top), unlike the GitHub release zip, which has a folder.
 - Expect an in-depth review because of the broad optional host permissions and a recorder injected into the page. The justifications above are written for that.
 - Trademark: the name uses "Constellation", which is Pega's product name. The description says plainly that this is independent and not affiliated. If the store objects to the name, rename and keep the rest.
 - Honest limit: the tool has not yet been run against a live Pega app. Say so in the release notes, and try it on a real app before submitting.
@@ -88,7 +88,7 @@ Dashboard: https://chrome.google.com/webstore/devconsole (sign in with the Googl
 ## Build the upload zip
 
 ```
-git archive --format=zip -o constellation-lens-v0.3.0-store.zip HEAD
+git archive --format=zip -o lens-v0.3.1-store.zip HEAD
 ```
 
 `.gitattributes` already leaves out tests, tools and `package.json`.

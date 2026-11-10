@@ -1,4 +1,4 @@
-// Draws the Constellation Lens mark into the PNG icons Chrome needs (manifest icons cannot be SVG) and writes icons/lens.svg.
+// Draws the Lens mark into the PNG icons Chrome needs (manifest icons cannot be SVG) and writes icons/lens.svg.
 // Run:  CANVAS_FROM=/path/to/a/project/with/@napi-rs/canvas/package.json node tools/make-icons.mjs
 // The PNGs and the SVG are committed, so nobody who just installs the extension needs to run this.
 import fs from 'node:fs';

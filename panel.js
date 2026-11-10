@@ -1,4 +1,4 @@
-/* Constellation Lens: DevTools panel.
+/* Lens: DevTools panel.
  * All page data is rendered with textContent / DOM nodes, never innerHTML, so nothing a page returns can run here.
  * The plain-English text, the data-call reader, the issue finder and the copy-ready reports live in src/report.js. */
 (() => {
@@ -814,7 +814,7 @@
 
   // ------------------------------------------------------------------ issues
   const LEVEL_WORD = { bad: 'Error', warn: 'Check', info: 'Note' };
-  const issueMeta = () => ({ tool: 'Constellation Lens', version: VERSION, origin: S.origin, runtime: mergedStatus().version, valuesHidden: S.mask });
+  const issueMeta = () => ({ tool: 'Lens', version: VERSION, origin: S.origin, runtime: mergedStatus().version, valuesHidden: S.mask });
   function issueCard(f) {
     const ev = f.ev;
     const inner = h('div', { class: 'inner' });
@@ -952,7 +952,7 @@
         h('p', { class: 'muted' }, f.length ? `${plural(bad, 'error')} among them. Each one can be copied as a bug report.` : 'No failed calls, page errors, stalled requests or loops.'),
         h('button', { class: 'primary', type: 'button', onclick: () => switchTab('issues') }, 'Open Issues')),
       h('div', { class: 'card' }, h('h2', {}, 'Share a diagnosis'), h('p', { class: 'muted' }, 'Copies the checks above (no event data) so you can report a compatibility problem.'),
-        copyBtn('Copy diagnostics', () => JSON.stringify({ tool: `Constellation Lens ${VERSION}`, userAgent: navigator.userAgent, status: st, frames: S.statusByFrame.size, events: S.events.length }, null, 2))),
+        copyBtn('Copy diagnostics', () => JSON.stringify({ tool: `Lens ${VERSION}`, userAgent: navigator.userAgent, status: st, frames: S.statusByFrame.size, events: S.events.length }, null, 2))),
     );
   }
 
@@ -1122,7 +1122,7 @@
     setTimeout(() => { if (!mergedStatus().pcore && S.enabled) banner('Lens is on, but no PCore was found yet. If this is a Constellation app, reload it. If the app runs inside an iframe on another host, turn Lens on for that host too.', true); }, 8000);
   });
   $('#btn-export').addEventListener('click', () => {
-    const data = { tool: 'Constellation Lens', version: VERSION, exportedAt: new Date().toISOString(), origin: S.origin, valuesHidden: S.mask, status: mergedStatus(), events: S.events.map((e) => view({ ...e, resHeadersFull: undefined, net: e.net ? { ...e.net, reqHeadersFull: undefined, urlFull: undefined } : e.net })) };
+    const data = { tool: 'Lens', version: VERSION, exportedAt: new Date().toISOString(), origin: S.origin, valuesHidden: S.mask, status: mergedStatus(), events: S.events.map((e) => view({ ...e, resHeadersFull: undefined, net: e.net ? { ...e.net, reqHeadersFull: undefined, urlFull: undefined } : e.net })) };
     download(`lens-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
   $('#expect-form').addEventListener('submit', (e) => {

@@ -1,4 +1,4 @@
-/* Constellation Lens: the mark.
+/* Lens: the mark.
  *
  * Hand-drawn: a teal-to-blue tile with a sketched magnifier lens; inside the lens a small constellation (two dots, one
  * amber sparkle). Nothing is a perfect circle or a straight line, on purpose: the ring overshoots where it closes, the
@@ -105,7 +105,7 @@
 
   /** The same drawing as a standalone SVG file. */
   function svgFile(star = COLORS.star) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="128" height="128" role="img" aria-label="Constellation Lens">
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="128" height="128" role="img" aria-label="Lens">
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${COLORS.tileFrom}"/><stop offset="1" stop-color="${COLORS.tileTo}"/></linearGradient></defs>
   <path d="${PATHS.tile}" fill="url(#g)"/>
   <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">

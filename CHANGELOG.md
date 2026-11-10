@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+The name is now just **Lens** (it is still "for Pega Constellation apps"). Nothing else changed.
+
 ## 0.3.0
 
-Renamed to **Constellation Lens**, with a hand-drawn icon, and a lot more to look at.
+Renamed to **Lens**, with a hand-drawn icon, and a lot more to look at.
 
 - **Network**: every request has the same tabs as the browser's Network panel: Headers, Payload, Preview, Response, Initiator and Timing. Request and response bodies are kept in full (the old 300,000-character cutoff is gone), the Response is coloured and numbered with Find, and Preview draws the whole response as you open it. Sensitive headers are hidden until you ask.
 - **Data pages**: every call that loads data, with its parameters, rows, columns and the HTTP request it made.

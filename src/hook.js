@@ -1,4 +1,4 @@
-/* Constellation Lens: page-world hook.
+/* Lens: page-world hook.
  *
  * Records what a Pega Constellation page does through PCore, PConnect, the Redux-style store and the network:
  * the call, its arguments, what came back (data and exact shape), how long it took, and who called it.
@@ -877,6 +877,6 @@
     else if (c.cmd === 'rescan') { scan(document.documentElement); status({ react: st.status.react }); }
   });
 
-  G.__pegaXray = { version: '0.3.0', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
+  G.__pegaXray = { version: '0.3.1', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
   post({ type: 'status', status: st.status });
 })();
