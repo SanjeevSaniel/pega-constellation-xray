@@ -1,6 +1,6 @@
 /* Constellation Lens: the mark.
  *
- * A violet tile with a magnifier lens; inside the lens, a small constellation (two dots, one amber star).
+ * A teal-to-blue tile with a white magnifier lens; inside the lens, a small constellation (two dots, one amber star).
  * One drawing, used three ways:
  *   - the toolbar icon, animated from the service worker with OffscreenCanvas,
  *   - the PNG icons (tools/make-icons.mjs),
@@ -11,7 +11,7 @@
 (function (root) {
   'use strict';
 
-  const COLORS = { tileFrom: '#9a86ff', tileTo: '#5b4bff', glass: '#ffffff', star: '#ffb84d' };
+  const COLORS = { tileFrom: '#14c8d9', tileTo: '#2563eb', glass: '#ffffff', star: '#ffc13d' };
   const ease = (x) => 1 - (1 - x) * (1 - x);
 
   // The constellation, in the 32-unit grid.
