@@ -284,13 +284,15 @@
     const rowsEl = $('#rows');
     // Measure BEFORE clearing: afterwards the list is empty and every question about "was it at the bottom" answers yes,
     // which is what made the list jump to the bottom whenever anything was clicked.
+    // Newest first: the latest row is at the top.
     const prevTop = rowsEl.scrollTop;
-    const wasBottom = rowsEl.scrollHeight - prevTop - rowsEl.clientHeight < 40;
+    const prevHeight = rowsEl.scrollHeight;
+    const wasTop = prevTop < 40;
     const scopeChanged = S.listScope !== scope;
     clear(rowsEl);
     const all = S.events.filter((e) => visible(e, scope));
     const shown = all.slice(-500);
-    for (const ev of shown) {
+    for (const ev of [...shown].reverse()) {
       const cls = ev.kind === 'nav' ? 'nav' : ev.status === 'error' || (ev.http >= 400) ? 'err' : ev.status === 'pending' ? 'pending' : '';
       const { nm, title } = rowLabel(ev, scope);
       rowsEl.append(h('div', {
@@ -305,9 +307,10 @@
         },
       }, h('span', { class: 't' }, fmtTime(ev.t)), h('span', { class: `badge k-${ev.kind}` }, KIND[ev.kind] || ev.kind), h('span', { class: 'nm', title }, nm), h('span', { class: 'st' }, rowStatus(ev, scope))));
     }
-    // Stay where the reader is. Only follow the newest rows if they were already at the bottom (or just opened this tab).
-    const stick = scopeChanged || wasBottom;
-    rowsEl.scrollTop = stick ? rowsEl.scrollHeight : prevTop;
+    // Stay where the reader is. Only follow the newest rows if they were already at the top (or just opened this tab).
+    // New rows land above the reader, so keep the same rows in view by shifting by the height that was added.
+    const stick = scopeChanged || wasTop;
+    rowsEl.scrollTop = stick ? 0 : prevTop + Math.max(0, rowsEl.scrollHeight - prevHeight);
     const added = Math.max(0, shown.length - S.lastShown);
     const jump = $('#jump-latest');
     if (stick) { S.lastShown = shown.length; jump.hidden = true; }
@@ -1018,16 +1021,21 @@
     if (sel) d.append(h('div', { class: 'crumbs', 'aria-label': 'Where this sits' }, ...R.viewPath(S.views.nodes, sel.id).flatMap((name, i, all) => [h('span', { class: i === all.length - 1 ? 'here' : '' }, name), i < all.length - 1 ? h('span', { class: 'sep' }, '›') : null])));
     d.append(...componentCard(r));
   }
+  // The picker runs in every frame Lens is attached to (through the bridge), so it also works for an app inside an iframe.
   async function pickOnPage() {
-    const { r } = await pageEval('window.__pegaXray ? window.__pegaXray.startPicker() : false');
-    if (!r) { banner('Lens is not attached to this page. Turn it on for this site and reload.', true); return; }
+    if (S.views.picking) { send({ cmd: 'unpick' }); S.views.picking = false; banner(''); $('#btn-pick').textContent = 'Pick on page'; return; }
+    if (!S.bridges) { banner('Lens is not attached to this page. Turn it on for this site and reload.', true); return; }
     S.views.picking = true;
-    banner('Click a component on the page to choose it. Press Escape to cancel. (Works in the top page; for an app inside an iframe, use that frame’s DevTools.)');
+    $('#btn-pick').textContent = 'Cancel picking';
+    send({ cmd: 'pick' });
+    banner('Click a component on the page to choose it. Press Escape to cancel.');
   }
   /** The page told us which component was clicked. */
   async function onPicked(msg) {
     banner('');
     S.views.picking = false;
+    $('#btn-pick').textContent = 'Pick on page';
+    send({ cmd: 'unpick' }); // stop the picker in the other frames too
     if (msg.cancelled) return;
     switchTab('views');
     const res = msg.result;
@@ -1099,10 +1107,10 @@
     render();
   });
   $('#issue-q').addEventListener('input', (e) => { S.issueQ = e.target.value; render(); });
-  $('#jump-latest').addEventListener('click', () => { const r = $('#rows'); r.scrollTop = r.scrollHeight; $('#jump-latest').hidden = true; S.lastShown = r.children.length; });
+  $('#jump-latest').addEventListener('click', () => { const r = $('#rows'); r.scrollTop = 0; $('#jump-latest').hidden = true; S.lastShown = r.children.length; });
   $('#rows').addEventListener('scroll', () => {
     const r = $('#rows');
-    if (r.scrollHeight - r.scrollTop - r.clientHeight < 40) { $('#jump-latest').hidden = true; S.lastShown = r.children.length; }
+    if (r.scrollTop < 40) { $('#jump-latest').hidden = true; S.lastShown = r.children.length; }
   });
   $('#btn-clear').addEventListener('click', () => { S.events = []; S.byKey.clear(); S.selected = null; S.openIssues.clear(); S.bodies.clear(); S.bodyChars = 0; S.showAll.clear(); S.find = ''; S.lastShown = 0; detailSig = ''; issuesSig = ''; send({ cmd: 'clear' }); render(); });
   $('#btn-pause').addEventListener('click', (e) => { S.paused = !S.paused; send({ cmd: S.paused ? 'pause' : 'resume' }); e.target.textContent = S.paused ? 'Resume' : 'Pause'; });

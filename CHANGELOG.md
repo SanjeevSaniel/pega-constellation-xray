@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4
+
+Filters that do what they show, newest calls first, and the picker inside iframes.
+
+- **Filters**: on Network and Data pages, the type pills and "Hide quick reads" (and "Pega calls only" on Data pages) stayed on screen but did nothing there. They are now hidden on the tabs they do not apply to. In Views, a search with "Containers only" no longer hides the matches that hold nothing.
+- **Newest first**: Activity, Data pages and Network list the latest call at the top. If you have scrolled down to read, the list stays put and the "↑ new" button takes you back to the top.
+- **Pick on page in iframes**: the picker now runs in every frame Lens is attached to, so it works for an app inside an iframe. Click the button again to cancel. It also finds components inside open shadow roots and deeper component trees.
+
 ## 0.3.3
 
 Checked against Pega 26.1, and it can now write code from what it records.

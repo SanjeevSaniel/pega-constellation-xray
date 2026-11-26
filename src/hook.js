@@ -696,7 +696,7 @@
     return fiberKey ? el[fiberKey] || null : null;
   }
   function pConnFromFiber(fiber) {
-    for (let f = fiber, i = 0; f && i < 60; f = f.return, i++) {
+    for (let f = fiber, i = 0; f && i < 400; f = f.return, i++) {
       const g = f.memoizedProps?.getPConnect;
       if (typeof g === 'function') return { getter: g, fiber: f };
     }
@@ -773,7 +773,7 @@
   function listComponents() {
     const rows = [];
     const seen = new WeakSet();
-    const all = G.document ? document.querySelectorAll('*') : [];
+    const all = allElements();
     for (let i = 0; i < all.length && i < 8000; i++) {
       const hit = pConnFromFiber(fiberOf(all[i]));
       if (!hit || seen.has(hit.getter)) continue;
@@ -788,7 +788,15 @@
   }
 
   // ---------------------------------------------------------------- views: the mounted components as a tree, and the page picker
-  const allElements = () => (G.document ? Array.from(document.querySelectorAll('*')) : []);
+  // Every element, including those inside open shadow roots, so a component in a web-component host can be found and picked.
+  const allElements = () => {
+    const out = [];
+    const walk = (root) => {
+      for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot); }
+    };
+    if (G.document) walk(document);
+    return out;
+  };
   const componentName = (el) => internal(() => {
     const hit = pConnFromFiber(fiberOf(el));
     if (!hit) return '';
@@ -891,10 +899,11 @@
     stopPicker();
     let target = null;
     const swallow = (e) => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
-    const move = (e) => { target = e.target; const name = componentName(target); place(target, name || 'no component here'); };
+    const real = (e) => (e.composedPath ? e.composedPath()[0] : null) || e.target;
+    const move = (e) => { target = real(e); const name = componentName(target); place(target, name || 'no component here'); };
     const click = (e) => {
       swallow(e);
-      const t = target || e.target;
+      const t = real(e) || target;
       const index = allElements().indexOf(t);
       const result = inspectElement(t);
       stopPicker();
@@ -916,11 +925,13 @@
       for (let i = 0; i < st.buf.length; i += 200) post({ type: 'events', items: st.buf.slice(i, i + 200), replay: true });
       for (const [k, v] of rawStore) { const i = k.indexOf(':'); postBody(Number(k.slice(0, i)), k.slice(i + 1), v.text, v.truncated); }
     } else if (c.cmd === 'clear') { st.buf.length = 0; st.q.length = 0; rawStore.clear(); rawTotal = 0; }
+    else if (c.cmd === 'pick') startPicker();
+    else if (c.cmd === 'unpick') stopPicker();
     else if (c.cmd === 'pause') st.paused = true;
     else if (c.cmd === 'resume') st.paused = false;
     else if (c.cmd === 'rescan') { scan(document.documentElement); status({ react: st.status.react }); }
   });
 
-  G.__pegaXray = { version: '0.3.3', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
+  G.__pegaXray = { version: '0.3.4', inspectElement, listComponents, viewTree, inspectIndex, highlight, startPicker, stopPicker, state: st, _snap: snap, _shape: shape };
   post({ type: 'status', status: st.status });
 })();

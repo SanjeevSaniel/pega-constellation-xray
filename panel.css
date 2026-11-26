@@ -80,7 +80,8 @@ code { background: var(--bg2); padding: 0 4px; border-radius: 4px; }
 
 main { flex: 1; min-height: 0; overflow: auto; }
 .split { display: grid; grid-template-columns: minmax(300px, 42%) 1fr; height: 100%; }
-.split[hidden], section[hidden] { display: none; }
+/* Classes like .check and .seg set display, which beats the browser's own [hidden] rule, so hidden controls stayed on screen. */
+[hidden] { display: none !important; }
 .pane { min-height: 0; overflow: auto; }
 .list-pane { display: flex; flex-direction: column; border-right: 1px solid var(--line); overflow: hidden; }
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--bg2); }
@@ -91,7 +92,7 @@ main { flex: 1; min-height: 0; overflow: auto; }
 .seg .n { opacity: .75; margin-left: 3px; font-variant-numeric: tabular-nums; }
 .rows-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
 .rows { flex: 1; overflow: auto; overflow-anchor: none; }
-.jump { position: absolute; right: 14px; bottom: 12px; background: var(--accent); color: var(--accent-fg); border-color: var(--accent); border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-weight: 600; }
+.jump { position: absolute; right: 14px; top: 12px; background: var(--accent); color: var(--accent-fg); border-color: var(--accent); border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-weight: 600; }
 .jump:hover { background: var(--accent); filter: brightness(1.1); }
 .row { display: grid; grid-template-columns: 82px 66px 1fr auto; gap: 8px; align-items: center; padding: 3px 10px 3px 8px; border-bottom: 1px solid var(--bg3); border-left: 3px solid transparent; cursor: pointer; min-height: 26px; }
 .row:hover { background: var(--bg2); }

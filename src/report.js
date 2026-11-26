@@ -308,8 +308,9 @@
       if (parent && parent !== n) parent.children.push(n); else roots.push(n);
     }
     // Containers only: drop the components that hold nothing (the leaves), so views inside views stand out. Roots always stay.
-    const strip = (list) => list.map((n) => ({ ...n, children: strip(n.children.filter((c) => c.children.length > 0)) }));
+    // With a filter, a component that matches stays even when it holds nothing, or the filter would hide its own hits.
     const needle = String(q || '').trim().toLowerCase();
+    const strip = (list) => list.map((n) => ({ ...n, children: strip(n.children.filter((c) => c.children.length > 0 || (needle && c.match))) }));
     if (!needle) return opts.containersOnly ? strip(roots) : roots;
     const hay = (n) => `${n.component} ${n.type} ${n.label} ${n.context} ${n.pageReference}`.toLowerCase();
     const prune = (list) => list.flatMap((n) => {
